@@ -4,6 +4,24 @@ import { useBridge } from "../bridge/useBridge.ts";
 
 export type ChatStatus = "idle" | "loading" | "error";
 
+const MAX_EVENTS = 2000;
+
+function trimEvents(events: ReturnType<typeof useBridge>["events"]) {
+	if (events.length <= MAX_EVENTS) return events;
+	const cutoff = events.length - MAX_EVENTS;
+	for (let i = cutoff; i < events.length; i++) {
+		const ev = events[i];
+		if (
+			ev.type === "rpc_event" &&
+			((ev.payload as Record<string, unknown>).type === "agent_start" ||
+				(ev.payload as Record<string, unknown>).type === "new_session")
+		) {
+			return events.slice(i);
+		}
+	}
+	return events.slice(cutoff);
+}
+
 export interface UsePiChatReturn {
 	messages: AgentMessage[];
 	streamingMessage?: AgentMessage;
@@ -21,7 +39,8 @@ export function usePiChat(): UsePiChatReturn {
 		let streamingMessage: AgentMessage | undefined;
 		let status: ChatStatus = "idle";
 
-		for (const event of events) {
+		const trimmed = trimEvents(events);
+		for (const event of trimmed) {
 			if (event.type === "rpc_event") {
 				const payload = event.payload as Record<string, unknown>;
 				if (payload.type === "agent_start") status = "loading";
