@@ -386,7 +386,14 @@ export function App() {
 					send={send}
 				/>
 				<ChatView messages={state.messages} streamingMessage={state.streamingMessage} toolCalls={state.toolCalls} />
-				<Composer onSend={handleSend} onCancel={handleAbort} disabled={!connected} loading={state.isStreaming} />
+				<Composer
+					onSend={handleSend}
+					onCancel={handleAbort}
+					disabled={!connected}
+					loading={state.isStreaming}
+					sessionName={currentCwd ? currentCwd.split(/[/\\]/).pop() : undefined}
+					sessionStats={state.sessionStats}
+				/>
 				<StatusBar
 					connected={connected}
 					isStreaming={state.isStreaming}
