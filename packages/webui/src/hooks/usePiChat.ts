@@ -14,7 +14,7 @@ export interface UsePiChatReturn {
 }
 
 export function usePiChat(): UsePiChatReturn {
-	const { connected, events } = useBridge();
+	const { connected, events, send } = useBridge();
 
 	const state = useMemo(() => {
 		const messages: AgentMessage[] = [];
@@ -45,8 +45,16 @@ export function usePiChat(): UsePiChatReturn {
 		return { messages, streamingMessage, status };
 	}, [events]);
 
-	const onRequest = useCallback(() => {}, []);
-	const onAbort = useCallback(() => {}, []);
+	const onRequest = useCallback(
+		(message: string, images?: ImageContent[]) => {
+			if (!message.trim() || !connected) return;
+			send({ type: "prompt", message: message.trim(), images });
+		},
+		[send, connected],
+	);
+	const onAbort = useCallback(() => {
+		send({ type: "abort" });
+	}, [send]);
 
 	return {
 		...state,
