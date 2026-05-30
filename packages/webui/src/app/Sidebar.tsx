@@ -3,7 +3,7 @@ import { Layout, Menu } from "antd";
 import { useState } from "react";
 import type { RpcCommand } from "../bridge/types.ts";
 import { ModelConfig } from "./ModelConfig.tsx";
-import { SessionList } from "./SessionList.tsx";
+import { SessionList, type Session } from "./SessionList.tsx";
 import { Settings } from "./Settings.tsx";
 
 const { Sider } = Layout;
@@ -16,9 +16,21 @@ export interface SidebarProps {
 	steeringMode: "all" | "one-at-a-time";
 	autoCompaction: boolean;
 	autoRetry: boolean;
+	sessions?: Session[];
+	currentSessionId?: string;
+	onSessionSwitch?: (sessionId: string) => void;
 }
 
-export function Sidebar({ send, thinkingLevel, steeringMode, autoCompaction, autoRetry }: SidebarProps) {
+export function Sidebar({
+	send,
+	thinkingLevel,
+	steeringMode,
+	autoCompaction,
+	autoRetry,
+	sessions = [],
+	currentSessionId,
+	onSessionSwitch,
+}: SidebarProps) {
 	const [activeTab, setActiveTab] = useState<SidebarTab>("sessions");
 
 	return (
@@ -34,7 +46,14 @@ export function Sidebar({ send, thinkingLevel, steeringMode, autoCompaction, aut
 				]}
 			/>
 			<div style={{ padding: 12 }}>
-				{activeTab === "sessions" && <SessionList send={send} />}
+				{activeTab === "sessions" && (
+					<SessionList
+						sessions={sessions}
+						currentSessionId={currentSessionId}
+						send={send}
+						onSwitch={onSessionSwitch ?? (() => {})}
+					/>
+				)}
 				{activeTab === "models" && (
 					<ModelConfig
 						send={send}
