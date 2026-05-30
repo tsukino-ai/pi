@@ -11,13 +11,14 @@ export interface ChatViewProps {
 function getMessageContent(msg: AgentMessage): string {
 	if (typeof msg.content === "string") return msg.content;
 	if (!Array.isArray(msg.content)) return "";
-	return msg.content.filter((c) => c.type === "text").map((c) => c.text ?? "").join("");
+	return msg.content
+		.filter((c) => c.type === "text")
+		.map((c) => c.text ?? "")
+		.join("");
 }
 
 export function ChatView({ messages, streamingMessage, toolCalls }: ChatViewProps) {
-	const allMessages = streamingMessage
-		? [...messages, streamingMessage]
-		: messages;
+	const allMessages = streamingMessage ? [...messages, streamingMessage] : messages;
 
 	return (
 		<Bubble.List

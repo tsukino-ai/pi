@@ -1,5 +1,5 @@
-import { Prompts } from "@ant-design/x";
 import { BulbOutlined } from "@ant-design/icons";
+import { Prompts } from "@ant-design/x";
 
 export interface Suggestion {
 	id: string;

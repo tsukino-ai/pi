@@ -1,5 +1,5 @@
-import { ThoughtChain } from "@ant-design/x";
 import { BulbOutlined, CheckCircleOutlined, LoadingOutlined } from "@ant-design/icons";
+import { ThoughtChain } from "@ant-design/x";
 
 export interface ThinkingStep {
 	id: string;

@@ -1,6 +1,6 @@
+import { RobotOutlined } from "@ant-design/icons";
 import { Welcome } from "@ant-design/x";
 import { Button, Space } from "antd";
-import { RobotOutlined } from "@ant-design/icons";
 
 export interface WelcomeScreenProps {
 	onQuickStart: () => void;

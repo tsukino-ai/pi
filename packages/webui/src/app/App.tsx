@@ -6,9 +6,9 @@ import { ChatView } from "../components/ChatView.tsx";
 import { CommandPalette } from "../components/CommandPalette.tsx";
 import { Composer } from "../components/Composer.tsx";
 import { DirectoryPicker } from "../components/DirectoryPicker.tsx";
-import { WelcomeScreen } from "../components/WelcomeScreen.tsx";
-import { SuggestionBar, DEFAULT_SUGGESTIONS } from "../components/SuggestionBar.tsx";
 import { StatusBar } from "../components/StatusBar.tsx";
+import { DEFAULT_SUGGESTIONS, SuggestionBar } from "../components/SuggestionBar.tsx";
+import { WelcomeScreen } from "../components/WelcomeScreen.tsx";
 import type { Session } from "./SessionList.tsx";
 import { Sidebar } from "./Sidebar.tsx";
 
@@ -357,16 +357,26 @@ export function App() {
 		[send],
 	);
 
+	const handleUseTemp = useCallback(() => {
+		// biome-ignore lint/correctness/useHookAtTopLevel: useTempWorkspace is a function from useBridge, not a hook
+		useTempWorkspace();
+		setDirectoryPickerVisible(false);
+	}, [useTempWorkspace]);
+
 	const cwd = currentCwd || extractCwd(state.sessionStats?.sessionFile);
 
 	return (
 		<Layout style={{ height: "100vh" }}>
-			<DirectoryPicker visible={directoryPickerVisible} onSelect={(cwd) => { setWorkingDirectory(cwd); setDirectoryPickerVisible(false); }} onUseTemp={() => { useTempWorkspace(); setDirectoryPickerVisible(false); }} />
+			<DirectoryPicker
+				visible={directoryPickerVisible}
+				onSelect={(cwd) => {
+					setWorkingDirectory(cwd);
+					setDirectoryPickerVisible(false);
+				}}
+				onUseTemp={handleUseTemp}
+			/>
 			{waitingForDirectory && !currentCwd ? (
-				<WelcomeScreen
-					onQuickStart={useTempWorkspace}
-					onSelectDirectory={() => setDirectoryPickerVisible(true)}
-				/>
+				<WelcomeScreen onQuickStart={useTempWorkspace} onSelectDirectory={() => setDirectoryPickerVisible(true)} />
 			) : (
 				<Layout>
 					{!state.sidebarCollapsed && (
@@ -400,7 +410,11 @@ export function App() {
 							onClose={() => setCommandPaletteVisible(false)}
 							send={send}
 						/>
-						<ChatView messages={state.messages} streamingMessage={state.streamingMessage} toolCalls={state.toolCalls} />
+						<ChatView
+							messages={state.messages}
+							streamingMessage={state.streamingMessage}
+							toolCalls={state.toolCalls}
+						/>
 						<Composer
 							onSend={handleSend}
 							onCancel={handleAbort}
