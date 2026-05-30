@@ -1,5 +1,5 @@
 import { Layout } from "antd";
-import { useCallback, useEffect, useReducer } from "react";
+import { useCallback, useEffect, useReducer, useRef } from "react";
 import type { AgentMessage, RpcExtensionUIRequest, ToolCallState } from "../bridge/types.ts";
 import { useBridge } from "../bridge/useBridge.ts";
 import { ChatView } from "../components/ChatView.tsx";
@@ -110,71 +110,82 @@ function appReducer(state: AppState, action: AppAction): AppState {
 	}
 }
 
+function processEvent(event: import("../bridge/client.ts").BridgeEvent, dispatch: React.Dispatch<AppAction>) {
+	if (event.type === "rpc_event") {
+		const payload = event.payload as Record<string, unknown>;
+		switch (payload.type) {
+			case "agent_start":
+				dispatch({ type: "agent_start" });
+				break;
+			case "agent_end":
+				dispatch({ type: "agent_end" });
+				break;
+			case "message_end":
+				if (payload.message) dispatch({ type: "message_end", message: payload.message as AgentMessage });
+				break;
+			case "message_update":
+				if (payload.message) dispatch({ type: "message_update", message: payload.message as AgentMessage });
+				break;
+			case "extension_ui_request":
+				dispatch({ type: "extension_request", request: payload as unknown as RpcExtensionUIRequest });
+				break;
+			case "tool_execution_start":
+				dispatch({
+					type: "tool_execution_start",
+					toolCallId: String(payload.toolCallId),
+					toolName: String(payload.toolName),
+					args: (payload.args ?? {}) as Record<string, unknown>,
+				});
+				break;
+			case "tool_execution_end":
+				dispatch({
+					type: "tool_execution_end",
+					toolCallId: String(payload.toolCallId),
+					isError: Boolean(payload.isError),
+					result: payload.result as ToolCallState["result"],
+				});
+				break;
+		}
+	}
+
+	if (event.type === "rpc_response") {
+		const resp = event.payload as Record<string, unknown>;
+		if (resp.command === "get_state" && resp.success) {
+			const data = resp.data as Record<string, unknown>;
+			if (data.model) dispatch({ type: "model_name", name: (data.model as Record<string, string>).name });
+			dispatch({
+				type: "state_update",
+				thinkingLevel: (data.thinkingLevel ?? "off") as AppState["thinkingLevel"],
+				steeringMode: (data.steeringMode ?? "all") as AppState["steeringMode"],
+				autoCompaction: Boolean(data.autoCompactionEnabled),
+				autoRetry: Boolean(data.autoRetryEnabled),
+			});
+		}
+	}
+}
+
 export function App() {
 	const { connected, events, send } = useBridge();
 	const [state, dispatch] = useReducer(appReducer, initialState);
+	const processedCountRef = useRef(0);
 
+	// Process ALL new events since last render, not just the last one
 	useEffect(() => {
-		const event = events[events.length - 1];
-		if (!event) return;
-
-		if (event.type === "rpc_event") {
-			const payload = event.payload as Record<string, unknown>;
-			switch (payload.type) {
-				case "agent_start":
-					dispatch({ type: "agent_start" });
-					break;
-				case "agent_end":
-					dispatch({ type: "agent_end" });
-					break;
-				case "message_end":
-					if (payload.message) dispatch({ type: "message_end", message: payload.message as AgentMessage });
-					break;
-				case "message_update":
-					if (payload.message) dispatch({ type: "message_update", message: payload.message as AgentMessage });
-					break;
-				case "extension_ui_request":
-					dispatch({ type: "extension_request", request: payload as unknown as RpcExtensionUIRequest });
-					break;
-				case "tool_execution_start":
-					dispatch({
-						type: "tool_execution_start",
-						toolCallId: String(payload.toolCallId),
-						toolName: String(payload.toolName),
-						args: (payload.args ?? {}) as Record<string, unknown>,
-					});
-					break;
-				case "tool_execution_end":
-					dispatch({
-						type: "tool_execution_end",
-						toolCallId: String(payload.toolCallId),
-						isError: Boolean(payload.isError),
-						result: payload.result as ToolCallState["result"],
-					});
-					break;
-			}
-		}
-
-		if (event.type === "rpc_response") {
-			const resp = event.payload as Record<string, unknown>;
-			if (resp.command === "get_state" && resp.success) {
-				const data = resp.data as Record<string, unknown>;
-				if (data.model) dispatch({ type: "model_name", name: (data.model as Record<string, string>).name });
-				dispatch({
-					type: "state_update",
-					thinkingLevel: (data.thinkingLevel ?? "off") as AppState["thinkingLevel"],
-					steeringMode: (data.steeringMode ?? "all") as AppState["steeringMode"],
-					autoCompaction: Boolean(data.autoCompactionEnabled),
-					autoRetry: Boolean(data.autoRetryEnabled),
-				});
-			}
+		const newEvents = events.slice(processedCountRef.current);
+		processedCountRef.current = events.length;
+		for (const event of newEvents) {
+			processEvent(event, dispatch);
 		}
 	}, [events]);
 
 	const handleSend = useCallback(
 		(message: string) => {
-			dispatch({ type: "user_message", message: { role: "user", content: message, timestamp: Date.now() } });
-			send({ type: "prompt", message });
+			try {
+				send({ type: "prompt", message });
+				dispatch({ type: "user_message", message: { role: "user", content: message, timestamp: Date.now() } });
+			} catch {
+				// Send failed (WebSocket not connected) — don't add to UI
+			}
 		},
 		[send],
 	);
