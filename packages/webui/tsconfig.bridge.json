@@ -1,0 +1,9 @@
+{
+	"extends": "./tsconfig.json",
+	"compilerOptions": {
+		"moduleResolution": "Node16",
+		"noEmit": false,
+		"outDir": "dist/bridge-server"
+	},
+	"include": ["bridge-server/**/*"]
+}
