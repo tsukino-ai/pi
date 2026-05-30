@@ -261,7 +261,7 @@ function extractCwd(sessionFile?: string): string | undefined {
 }
 
 export function App() {
-	const { connected, events, send, waitingForDirectory, currentCwd, setWorkingDirectory, useTempWorkspace } =
+	const { connected, events, send, waitingForDirectory, currentCwd, sessions, setWorkingDirectory, useTempWorkspace } =
 		useBridge();
 	const [state, dispatch] = useReducer(appReducer, initialState);
 	const processedCountRef = useRef(0);
@@ -366,9 +366,11 @@ export function App() {
 					steeringMode={state.steeringMode}
 					autoCompaction={state.autoCompaction}
 					autoRetry={state.autoRetry}
-					sessions={state.sessions}
+					sessions={sessions}
 					currentSessionId={state.currentSessionId}
 					onSessionSwitch={handleSessionSwitch}
+					onChangeCwd={setWorkingDirectory}
+					currentCwd={currentCwd ?? undefined}
 					currentModel={state.currentModel}
 					availableModels={state.availableModels}
 					bashOutput={state.bashOutput}

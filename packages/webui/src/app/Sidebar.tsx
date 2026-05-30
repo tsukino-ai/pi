@@ -19,11 +19,13 @@ export interface SidebarProps {
 	autoRetry: boolean;
 	sessions?: Session[];
 	currentSessionId?: string;
-	onSessionSwitch?: (sessionId: string) => void;
+	onSessionSwitch?: (sessionPath: string) => void;
+	onChangeCwd?: (cwd: string) => void;
 	currentModel?: Model;
 	availableModels?: Model[];
 	bashOutput?: string;
 	bashIsRunning?: boolean;
+	currentCwd?: string;
 }
 
 export function Sidebar({
@@ -35,10 +37,12 @@ export function Sidebar({
 	sessions = [],
 	currentSessionId,
 	onSessionSwitch,
+	onChangeCwd,
 	currentModel,
 	availableModels = [],
 	bashOutput,
 	bashIsRunning = false,
+	currentCwd,
 }: SidebarProps) {
 	const [activeTab, setActiveTab] = useState<SidebarTab>("sessions");
 
@@ -60,8 +64,10 @@ export function Sidebar({
 					<SessionList
 						sessions={sessions}
 						currentSessionId={currentSessionId}
+						currentCwd={currentCwd}
 						send={send}
 						onSwitch={onSessionSwitch ?? (() => {})}
+						onChangeCwd={onChangeCwd ?? (() => {})}
 					/>
 				)}
 				{activeTab === "models" && (

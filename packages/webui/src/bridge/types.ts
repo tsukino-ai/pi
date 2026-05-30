@@ -114,6 +114,16 @@ export interface RpcSessionState {
 
 export type RpcCommandType = RpcCommand["type"];
 
+/** Session information from list_sessions */
+export interface Session {
+	sessionId: string;
+	workDir: string;
+	workDirHash: string;
+	title: string;
+	lastUpdated: number;
+	turns: number;
+}
+
 /** Session statistics from get_session_stats */
 export interface SessionStats {
 	userMessages: number;

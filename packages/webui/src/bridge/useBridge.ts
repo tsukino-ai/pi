@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { BridgeClient, type BridgeEvent } from "./client.ts";
-import type { RpcCommand } from "./types.ts";
+import type { RpcCommand, Session } from "./types.ts";
 
 export interface UseBridgeState {
 	connected: boolean;
@@ -9,6 +9,7 @@ export interface UseBridgeState {
 	clearEvents: () => void;
 	waitingForDirectory: boolean;
 	currentCwd: string | null;
+	sessions: Session[];
 	setWorkingDirectory: (cwd: string) => void;
 	useTempWorkspace: () => void;
 }
@@ -24,6 +25,7 @@ export function useBridge(url?: string): UseBridgeState {
 	const [events, setEvents] = useState<BridgeEvent[]>([]);
 	const [waitingForDirectory, setWaitingForDirectory] = useState(false);
 	const [currentCwd, setCurrentCwd] = useState<string | null>(null);
+	const [sessions, setSessions] = useState<Session[]>([]);
 
 	useEffect(() => {
 		const client = new BridgeClient(resolvedUrl);
@@ -48,11 +50,15 @@ export function useBridge(url?: string): UseBridgeState {
 				if (payload.type === "bridge_event") {
 					if (payload.event === "waiting_for_directory") {
 						setWaitingForDirectory(true);
+						// Request session list
+						client.send({ type: "list_sessions" } as unknown as RpcCommand);
 						return;
 					}
 					if (payload.event === "pi_started") {
 						setWaitingForDirectory(false);
 						setCurrentCwd(payload.cwd as string);
+						// Refresh session list
+						client.send({ type: "list_sessions" } as unknown as RpcCommand);
 						// Fetch initial state
 						try {
 							client.send({ type: "get_state" });
@@ -60,6 +66,10 @@ export function useBridge(url?: string): UseBridgeState {
 						} catch {
 							/* ignore */
 						}
+						return;
+					}
+					if (payload.event === "session_list") {
+						setSessions(payload.sessions as Session[]);
 						return;
 					}
 				}
@@ -99,6 +109,7 @@ export function useBridge(url?: string): UseBridgeState {
 		clearEvents,
 		waitingForDirectory,
 		currentCwd,
+		sessions,
 		setWorkingDirectory,
 		useTempWorkspace,
 	};
