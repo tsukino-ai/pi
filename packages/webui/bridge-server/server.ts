@@ -1,4 +1,4 @@
-import { WebSocketServer, type WebSocket } from "ws";
+import { type WebSocket, WebSocketServer } from "ws";
 import { PiProcess } from "./pi-process.ts";
 
 export interface BridgeServerOptions {

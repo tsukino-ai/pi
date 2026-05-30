@@ -37,7 +37,7 @@ export function useBridge(url = "ws://localhost:8080"): UseBridgeState {
 			unsubscribe();
 			client.disconnect();
 		};
-	}, [url]);
+	}, []);
 
 	const send = useCallback((command: RpcCommand) => {
 		clientRef.current.send(command);

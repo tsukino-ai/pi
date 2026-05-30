@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useReducer } from "react";
-import { useBridge } from "./bridge/useBridge.ts";
 import type { AgentMessage, RpcExtensionUIRequest } from "./bridge/types.ts";
+import { useBridge } from "./bridge/useBridge.ts";
 import { ChatView } from "./components/ChatView.tsx";
 import { Composer } from "./components/Composer.tsx";
 import { StatusBar } from "./components/StatusBar.tsx";

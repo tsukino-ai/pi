@@ -1,9 +1,11 @@
-import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { BridgeClient, type BridgeEvent } from "../src/bridge/client.ts";
 
 // Minimal WebSocket mock that exercises the real callback paths
+const MockWebSocketInstances: MockWebSocket[] = [];
+
 class MockWebSocket {
-	static instances: MockWebSocket[] = [];
+	static instances = MockWebSocketInstances;
 	static CONNECTING = 0;
 	static OPEN = 1;
 	static CLOSING = 2;
@@ -17,7 +19,10 @@ class MockWebSocket {
 
 	sent: string[] = [];
 
-	constructor(public url: string) {
+	url: string;
+
+	constructor(url: string) {
+		this.url = url;
 		MockWebSocket.instances.push(this);
 		// Simulate async connect
 		queueMicrotask(() => this.onopen?.(new Event("open")));
