@@ -1,6 +1,6 @@
-import { MenuOutlined } from "@ant-design/icons";
+import { CompressOutlined, MenuOutlined } from "@ant-design/icons";
 import { Button, Tag, Tooltip } from "antd";
-import type { SessionStats } from "../bridge/types.ts";
+import type { RpcCommand, SessionStats } from "../bridge/types.ts";
 
 export interface StatusBarProps {
 	connected: boolean;
@@ -9,6 +9,7 @@ export interface StatusBarProps {
 	onToggleSidebar?: () => void;
 	sessionStats?: SessionStats;
 	cwd?: string;
+	send?: (command: RpcCommand) => void;
 }
 
 function formatTokens(n: number): string {
@@ -17,7 +18,7 @@ function formatTokens(n: number): string {
 	return String(n);
 }
 
-export function StatusBar({ connected, isStreaming, modelName, onToggleSidebar, sessionStats, cwd }: StatusBarProps) {
+export function StatusBar({ connected, isStreaming, modelName, onToggleSidebar, sessionStats, cwd, send }: StatusBarProps) {
 	const tokens = sessionStats?.tokens;
 
 	return (
@@ -44,6 +45,16 @@ export function StatusBar({ connected, isStreaming, modelName, onToggleSidebar, 
 			)}
 			{sessionStats && sessionStats.cost > 0 && (
 				<span style={{ color: "#888" }}>${sessionStats.cost.toFixed(4)}</span>
+			)}
+			{send && (
+				<Tooltip title="Compact context">
+					<Button
+						size="small"
+						type="text"
+						icon={<CompressOutlined />}
+						onClick={() => send({ type: "compact" })}
+					/>
+				</Tooltip>
 			)}
 			{cwd && (
 				<Tooltip title={cwd}>
