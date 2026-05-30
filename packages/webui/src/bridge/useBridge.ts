@@ -8,8 +8,15 @@ export interface UseBridgeState {
 	send: (command: RpcCommand) => void;
 }
 
-export function useBridge(url = "ws://localhost:8080"): UseBridgeState {
-	const clientRef = useRef<BridgeClient>(new BridgeClient(url));
+function getDefaultUrl(): string {
+	if (typeof window === "undefined") return "ws://localhost:8080";
+	const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+	return `${protocol}//${window.location.host}/api`;
+}
+
+export function useBridge(url?: string): UseBridgeState {
+	const resolvedUrl = url ?? getDefaultUrl();
+	const clientRef = useRef<BridgeClient>(new BridgeClient(resolvedUrl));
 	const [connected, setConnected] = useState(false);
 	const [events, setEvents] = useState<BridgeEvent[]>([]);
 

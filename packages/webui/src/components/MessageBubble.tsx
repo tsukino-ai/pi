@@ -1,4 +1,3 @@
-import { Bubble } from "@ant-design/x";
 import type { AgentMessage } from "../bridge/types.ts";
 
 export interface MessageBubbleProps {
@@ -28,14 +27,32 @@ function getMessageContent(msg: AgentMessage): string {
 }
 
 export function MessageBubble({ message, isStreaming }: MessageBubbleProps) {
-	const placement = message.role === "user" ? "end" : "start";
+	const isUser = message.role === "user";
 	const content = getMessageContent(message);
 
 	return (
-		<Bubble
-			placement={placement}
-			content={content + (isStreaming ? "▋" : "")}
-			avatar={message.role === "user" ? { icon: "U" } : { icon: "AI" }}
-		/>
+		<div
+			style={{
+				display: "flex",
+				justifyContent: isUser ? "flex-end" : "flex-start",
+				marginBottom: 8,
+			}}
+		>
+			<div
+				style={{
+					maxWidth: "85%",
+					padding: "10px 14px",
+					borderRadius: 12,
+					background: isUser ? "#1677ff" : "#f0f0f0",
+					color: isUser ? "#fff" : "#333",
+					whiteSpace: "pre-wrap",
+					wordBreak: "break-word",
+					fontSize: 15,
+					lineHeight: 1.5,
+				}}
+			>
+				{content + (isStreaming ? "▋" : "")}
+			</div>
+		</div>
 	);
 }

@@ -1,8 +1,8 @@
-# Pi WebUI Phase 3 Design Spec — Full Feature Set + Component Library
+# Pi WebUI Phase 3 Design Spec — Complete Standalone App
 
 ## Goal
 
-Complete the standalone web UI with session management, model configuration, theme switching, and HTML export. Then extract the reusable chat components into a publishable `@earendil-works/pi-webui` component library.
+Complete the standalone web UI with sidebar (session management, model configuration, settings), theme switching, and HTML export. Focus on shipping a polished standalone app — component library extraction is deferred to a future phase when there's a real consumer.
 
 ## Architecture
 
@@ -14,7 +14,7 @@ Complete the standalone web UI with session management, model configuration, the
 │  │            │  ┌───────────────────────────────────┐  │   │
 │  │ - Sessions │  │ ChatView                          │  │   │
 │  │ - Models   │  │ ├─ MessageBubble                  │  │   │
-│  │ - Settings │  │ │  ├─ ToolCallCard                │  │   │
+│  │ - Settings │  │ │  ├─ ToolCallCard (Phase 2)      │  │   │
 │  │            │  │ │  └─ ...                         │  │   │
 │  │            │  │ └─ Composer                       │  │   │
 │  │            │  └───────────────────────────────────┘  │   │
@@ -23,57 +23,59 @@ Complete the standalone web UI with session management, model configuration, the
 └─────────────────────────────────────────────────────────────┘
 ```
 
-## Component Library Extraction
+## Component Design
 
-### What Gets Extracted
+### App.tsx — Layout Shell
 
-| Component | Library Export | Notes |
-|---|---|---|
-| `BridgeClient` | `@earendil-works/pi-webui/bridge` | WebSocket client + types |
-| `useBridge` | `@earendil-works/pi-webui/bridge` | React hook |
-| `ChatView` | `@earendil-works/pi-webui` | Message list container |
-| `MessageBubble` | `@earendil-works/pi-webui` | Message renderer |
-| `Composer` | `@earendil-works/pi-webui` | Input component |
-| `ToolCallCard` | `@earendil-works/pi-webui` | Tool result cards |
-| `CodeBlock` | `@earendil-works/pi-webui` | Syntax highlighted code |
-| `DiffView` | `@earendil-works/pi-webui` | Diff renderer |
-| `TerminalOutput` | `@earendil-works/pi-webui` | Terminal output |
+Replace the current single-column layout with a sidebar + chat area:
 
-### What Stays in the App
-
-- `App.tsx` — layout shell with sidebar
-- Sidebar components — session list, model selector, settings
-- Theme provider — global Ant Design theme config
-- Export logic — HTML generation
-
-### Package Exports
-
-```json
-{
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
-    },
-    "./bridge": {
-      "types": "./dist/bridge.d.ts",
-      "import": "./dist/bridge.js"
-    }
-  }
-}
+```tsx
+<Layout>
+  <Sider collapsible collapsed={sidebarCollapsed} onCollapse={setSidebarCollapsed}>
+    <Sidebar />
+  </Sider>
+  <Layout>
+    <ChatView />
+    <Composer />
+    <StatusBar />
+  </Layout>
+</Layout>
 ```
 
-## Sidebar Design
+### Sidebar
 
-### Session List
+Three sections, each in a collapsible `Collapse.Panel`:
 
-- Collapsible panel (Ant Design `Sider`).
+#### 1. Session List
+
 - List of recent sessions with name + last message preview + timestamp.
-- Context menu: Rename, Fork, Clone, Delete, Export HTML.
 - "New Session" button at top.
-- Search/filter input.
+- Click to switch session.
+- Each session item has a context menu with available actions.
 
-### Model Configuration
+**RPC mapping:**
+
+| Action | RPC Command | Notes |
+|--------|-------------|-------|
+| Switch session | `switch_session` | Takes `sessionPath` |
+| New session | `new_session` | Optionally with `parentSession` for fork |
+| Rename | `set_session_name` | Takes `name` |
+| Get messages | `get_messages` | Fetch full message history |
+
+**Actions that need UX clarification:**
+
+| Action | RPC Command | UX |
+|--------|-------------|-----|
+| Fork | `fork` | Takes `entryId`. User picks an entry from the current session to branch from. |
+| Clone | `clone` | No params. Creates a copy of current session. |
+| Export HTML | `export_html` | Returns `{ path }`. Bridge server could serve the file via HTTP for direct download. |
+
+**Not available in RPC protocol (omit from UI):**
+
+- Delete session — no `delete_session` command exists
+- Session search/filter — client-side filtering of loaded session list
+
+#### 2. Model Configuration
 
 - Dropdown selector for model (populated via `get_available_models`).
 - Thinking level toggle: off / minimal / low / medium / high / xhigh.
@@ -82,92 +84,152 @@ Complete the standalone web UI with session management, model configuration, the
 - Auto-compaction toggle.
 - Auto-retry toggle.
 
-### Settings
+**RPC mapping:**
+
+| Control | RPC Command | Response |
+|---------|-------------|----------|
+| Model list | `get_available_models` | `{ models: Model[] }` |
+| Set model | `set_model` | `{ provider, modelId }` |
+| Cycle model | `cycle_model` | Next model in list |
+| Thinking level | `set_thinking_level` | `{ level }` |
+| Steering mode | `set_steering_mode` | `{ mode }` |
+| Follow-up mode | `set_follow_up_mode` | `{ mode }` |
+| Auto-compaction | `set_auto_compaction` | `{ enabled }` |
+| Auto-retry | `set_auto_retry` | `{ enabled }` |
+
+Current values are loaded from `get_state` on connect (already implemented in Phase 1).
+
+#### 3. Settings
 
 - Theme: Light / Dark / System.
-- Bridge URL input (default `ws://localhost:8080`).
-- pi CLI path input (for custom installations).
+- Bridge URL input (default `ws://localhost:8080`) — requires reconnect.
+- pi CLI path (read-only display, configured via env var).
+
+Settings are stored in `localStorage`.
+
+### Sidebar Component
+
+```typescript
+interface SidebarProps {
+  sessions: SessionInfo[];
+  currentSessionId: string | undefined;
+  models: Model[];
+  currentModel: Model | undefined;
+  thinkingLevel: ThinkingLevel;
+  settings: AppSettings;
+  onAction: (action: SidebarAction) => void;
+}
+```
 
 ## Theme Switching
 
-- Use Ant Design's `ConfigProvider` with dynamic `theme` prop.
-- Store preference in `localStorage`.
-- CSS variables for custom components to respect theme.
+Use Ant Design's `ConfigProvider` with dynamic `theme` prop:
+
+```tsx
+<ConfigProvider theme={{ algorithm: isDark ? theme.darkAlgorithm : theme.defaultAlgorithm }}>
+  <App />
+</ConfigProvider>
+```
+
+- Store preference in `localStorage` key `pi-webui-theme`.
+- Options: `"light"` | `"dark"` | `"system"` (follows `prefers-color-scheme`).
+- No CSS variables needed — Ant Design's built-in theming handles all components.
 
 ## HTML Export
 
-- Reuse `packages/coding-agent/src/core/export-html/` logic where possible.
-- Frontend triggers `export_html` RPC command, receives file path.
-- Optional: download the generated HTML directly via a temporary HTTP endpoint in the bridge server.
+The `export_html` RPC command returns `{ path: string }` — the file is written to disk by the pi process. To make it accessible from the browser:
 
-## Component Library Build
+**Option A (recommended):** Bridge server serves a static file directory.
+- Bridge server exposes `GET /exports/:filename` that serves from a temp directory.
+- After `export_html` returns, the frontend constructs a download URL.
+- Simple, no new dependencies.
 
-- Vite library mode (`build.lib` in vite.config.ts).
-- Externalize `react`, `react-dom`, `antd`, `@ant-design/x` as peer dependencies.
-- Generate `.d.ts` declarations via `vite-plugin-dts`.
+**Option B:** Frontend re-fetches via a new `download_html` RPC command that returns the file content inline.
+- More portable (no HTTP server needed in bridge).
+- Large HTML files could be slow over WebSocket.
 
-## File Structure (Final)
+**Recommendation:** Option A for Phase 3. The bridge server already runs an HTTP-capable WebSocket server; adding a static file route is minimal work.
 
-```
-packages/webui/
-├── src/
-│   ├── index.ts              # library entry (exports)
-│   ├── bridge/
-│   │   ├── index.ts          # bridge barrel export
-│   │   ├── types.ts
-│   │   ├── client.ts
-│   │   └── useBridge.ts
-│   ├── components/
-│   │   ├── index.ts          # component barrel export
-│   │   ├── ChatView.tsx
-│   │   ├── Composer.tsx
-│   │   ├── MessageBubble.tsx
-│   │   ├── StatusBar.tsx
-│   │   └── tool-renderers/
-│   │       ├── index.ts
-│   │       ├── ToolCallCard.tsx
-│   │       ├── CodeBlock.tsx
-│   │       ├── DiffView.tsx
-│   │       ├── TerminalOutput.tsx
-│   │       ├── InlineForm.tsx
-│   │       └── FileNotice.tsx
-│   ├── app/                  # standalone app only
-│   │   ├── App.tsx
-│   │   ├── main.tsx
-│   │   ├── Sidebar.tsx
-│   │   ├── SessionList.tsx
-│   │   ├── ModelConfig.tsx
-│   │   ├── Settings.tsx
-│   │   └── ThemeProvider.tsx
-│   ├── utils/
-│   │   ├── syntax-highlight.ts
-│   │   └── diff-parser.ts
-│   └── styles/
-│       └── index.css
-├── app.html                  # standalone app entry
-├── lib.html                  # dev playground for library
-├── bridge-server/            # unchanged from Phase 1
-│   ├── index.ts
-│   ├── server.ts
-│   └── pi-process.ts
-├── package.json              # updated exports + peerDeps
-├── vite.config.ts            # dual config (app + lib)
-├── tsconfig.json
-└── test/
+## State Management
+
+Extend the existing `useReducer` in `App.tsx`:
+
+```typescript
+interface AppState {
+  // Chat state (existing)
+  messages: AgentMessage[];
+  streamingMessage: AgentMessage | undefined;
+  isStreaming: boolean;
+  modelName: string | undefined;
+  pendingExtension: RpcExtensionUIRequest | undefined;
+
+  // Phase 3 additions
+  sessions: SessionInfo[];
+  currentSessionId: string | undefined;
+  availableModels: Model[];
+  currentModel: Model | undefined;
+  thinkingLevel: ThinkingLevel;
+  steeringMode: "all" | "one-at-a-time";
+  followUpMode: "all" | "one-at-a-time";
+  autoCompaction: boolean;
+  autoRetry: boolean;
+  sidebarCollapsed: boolean;
+  theme: "light" | "dark" | "system";
+}
 ```
 
-## Build Targets
+Most of these are populated from the `get_state` response on connect, and updated via subsequent RPC responses.
 
-| Target | Command | Output |
-|---|---|---|
-| App | `npm run build:app` | `dist/app/` |
-| Library | `npm run build:lib` | `dist/lib/` |
-| Bridge | `npm run build:bridge` | `dist/bridge-server/` |
-| All | `npm run build` | all of above |
+## File Structure
+
+```
+packages/webui/src/
+├── main.tsx
+├── App.tsx                   # Layout shell (sidebar + chat)
+├── bridge/
+│   ├── types.ts
+│   ├── client.ts
+│   └── useBridge.ts
+├── components/
+│   ├── ChatView.tsx
+│   ├── Composer.tsx
+│   ├── MessageBubble.tsx
+│   ├── StatusBar.tsx
+│   ├── Sidebar.tsx           # NEW: sidebar container
+│   ├── SessionList.tsx       # NEW: session list + actions
+│   ├── ModelConfig.tsx       # NEW: model/thinking/mode controls
+│   ├── Settings.tsx          # NEW: theme + bridge URL
+│   └── tool-renderers/       # Phase 2
+│       └── ...
+├── hooks/
+│   ├── useTheme.ts           # NEW: theme management with localStorage
+│   └── useSettings.ts        # NEW: settings persistence
+└── styles/
+    └── index.css
+```
+
+## Build
+
+No changes to build config. Phase 3 remains a single build target (`vite build` → `dist/app/`).
+
+Component library extraction is deferred. When needed:
+- Add `vite-plugin-dts` for `.d.ts` generation
+- Add `build.lib` config to `vite.config.ts`
+- Extract reusable components to `src/lib/` with barrel exports
+- Externalize `react`, `react-dom`, `antd`, `@ant-design/x` as peer deps
 
 ## Testing
 
-- Component tests with `@testing-library/react` + vitest.
-- Bridge integration tests (mock pi process).
-- Theme switching test.
-- Export HTML end-to-end test.
+- **Sidebar rendering:** Mount with mock data, verify session list, model dropdown, settings.
+- **Theme switching:** Toggle light/dark/system, verify `ConfigProvider` algorithm changes.
+- **Session switching:** Click session item, verify `switch_session` RPC command sent, messages reload.
+- **Model selection:** Select model, verify `set_model` RPC command sent with correct `provider` + `modelId`.
+- **HTML export:** Mock `export_html` response, verify download link appears.
+
+## Out of Scope (Future)
+
+- Component library extraction (separate effort when there's a consumer)
+- Session search/filter (client-side, can add incrementally)
+- Keyboard shortcuts for sidebar actions
+- Session deletion (requires RPC protocol addition)
+- Multi-window / multi-tab support

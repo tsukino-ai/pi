@@ -17,7 +17,7 @@ export class BridgeServer {
 	private clients = new Map<WebSocket, ClientState>();
 
 	constructor(private options: BridgeServerOptions) {
-		this.wss = new WebSocketServer({ port: options.port });
+		this.wss = new WebSocketServer({ port: options.port, host: "0.0.0.0" });
 	}
 
 	start(): void {
@@ -66,7 +66,7 @@ export class BridgeServer {
 			this.clients.set(socket, { socket, pi });
 		});
 
-		console.log(`[bridge] Listening on ws://localhost:${this.options.port}`);
+		console.log(`[bridge] Listening on ws://${this.wss.options.host ?? "0.0.0.0"}:${this.options.port}`);
 	}
 
 	stop(): void {

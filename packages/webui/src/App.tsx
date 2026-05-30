@@ -1,4 +1,6 @@
 import { useCallback, useMemo } from "react";
+import { Welcome } from "@ant-design/x";
+import { CommentOutlined } from "@ant-design/icons";
 import { useBridge } from "./bridge/useBridge.ts";
 import type { AgentMessage } from "./bridge/types.ts";
 import { ChatView } from "./components/ChatView.tsx";
@@ -60,10 +62,30 @@ export function App() {
 		[send],
 	);
 
+	const showWelcome = messages.length === 0 && !streamingMessage;
+
 	return (
-		<div style={{ display: "flex", flexDirection: "column", height: "100vh" }}>
-			<ChatView messages={messages} streamingMessage={streamingMessage} />
-			<Composer onSend={handleSend} disabled={!connected || isStreaming} />
+		<div
+			style={{
+				display: "flex",
+				flexDirection: "column",
+				height: "100dvh",
+				overflow: "hidden",
+				background: "#fff",
+			}}
+		>
+			{showWelcome ? (
+				<div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
+					<Welcome
+						icon={<CommentOutlined style={{ fontSize: 48, color: "#1677ff" }} />}
+						title="pi WebUI"
+						description="Connect to bridge and start chatting with your AI agent."
+					/>
+				</div>
+			) : (
+				<ChatView messages={messages} streamingMessage={streamingMessage} />
+			)}
+			<Composer onSend={handleSend} disabled={!connected || isStreaming} loading={isStreaming} />
 			<StatusBar connected={connected} isStreaming={isStreaming} modelName={modelName} />
 		</div>
 	);

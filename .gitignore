@@ -40,3 +40,4 @@ todo.md
 .pi/hf-sessions-backup/
 collect.sh
 .worktrees/
+.ref/
