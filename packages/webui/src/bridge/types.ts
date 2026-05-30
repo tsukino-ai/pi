@@ -112,3 +112,19 @@ export interface RpcSessionState {
 }
 
 export type RpcCommandType = RpcCommand["type"];
+
+/** Structured result from a tool execution. Matches AgentToolResult<T> from the agent. */
+export interface ToolResult {
+	content: Array<{ type: string; text?: string }>;
+	details: unknown;
+	terminate?: boolean;
+}
+
+/** Tracked state for a single tool call. */
+export interface ToolCallState {
+	toolCallId: string;
+	toolName: string;
+	args: Record<string, unknown>;
+	status: "pending" | "success" | "error";
+	result?: ToolResult;
+}
