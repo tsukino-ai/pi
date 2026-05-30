@@ -97,8 +97,12 @@ export function MessageBubble({ message, isStreaming, toolCalls }: MessageBubble
 			)}
 			<Bubble
 				placement={placement}
-				content={content + (isStreaming ? "▋" : "")}
+				content={content}
 				avatar={message.role === "user" ? { icon: "U" } : { icon: "AI" }}
+				typing={isStreaming ? { step: 2, interval: 50 } : false}
+				loading={isStreaming && !content}
+				variant="shadow"
+				shape="round"
 			/>
 			{toolCallCards}
 		</div>
