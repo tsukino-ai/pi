@@ -18,12 +18,13 @@ export function ChatView({ messages, streamingMessage }: ChatViewProps) {
 				gap: 12,
 			}}
 		>
-			{messages.map((msg, i) => (
-				<MessageBubble key={i} message={msg} />
+			{messages.map((msg) => (
+				<MessageBubble
+					key={`${msg.role}-${msg.timestamp ?? ""}-${typeof msg.content === "string" ? msg.content.slice(0, 32) : ""}`}
+					message={msg}
+				/>
 			))}
-			{streamingMessage && (
-				<MessageBubble message={streamingMessage} isStreaming />
-			)}
+			{streamingMessage && <MessageBubble message={streamingMessage} isStreaming />}
 		</div>
 	);
 }

@@ -1,5 +1,5 @@
 import { Button, Input } from "antd";
-import { useState, type KeyboardEvent } from "react";
+import { type KeyboardEvent, useState } from "react";
 
 export interface ComposerProps {
 	onSend: (message: string) => void;

@@ -13,6 +13,8 @@ export class BridgeClient {
 	private reconnectTimer: ReturnType<typeof setTimeout> | undefined;
 	private url: string;
 	private shouldReconnect = true;
+	private reconnectDelay = 1000;
+	private readonly maxReconnectDelay = 30_000;
 
 	constructor(url = "ws://localhost:8080") {
 		this.url = url;
@@ -24,6 +26,7 @@ export class BridgeClient {
 
 		this.ws.onopen = () => {
 			this.emit({ type: "connected" });
+			this.reconnectDelay = 1000;
 			if (this.reconnectTimer) {
 				clearTimeout(this.reconnectTimer);
 				this.reconnectTimer = undefined;
@@ -48,14 +51,17 @@ export class BridgeClient {
 					this.emit({ type: "rpc_event", payload: data });
 				}
 			} catch {
-				// Ignore non-JSON
+				console.warn("[bridge] Non-JSON message from server:", String(ev.data).slice(0, 200));
 			}
 		};
 
 		this.ws.onclose = () => {
 			this.emit({ type: "disconnected" });
 			if (this.shouldReconnect) {
-				this.reconnectTimer = setTimeout(() => this.connect(), 2000);
+				this.reconnectTimer = setTimeout(() => {
+					this.reconnectDelay = Math.min(this.reconnectDelay * 2, this.maxReconnectDelay);
+					this.connect();
+				}, this.reconnectDelay);
 			}
 		};
 
