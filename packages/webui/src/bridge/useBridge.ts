@@ -6,6 +6,7 @@ export interface UseBridgeState {
 	connected: boolean;
 	events: BridgeEvent[];
 	send: (command: RpcCommand) => void;
+	clearEvents: () => void;
 }
 
 function getDefaultUrl(): string {
@@ -27,6 +28,12 @@ export function useBridge(url?: string): UseBridgeState {
 		const unsubscribe = client.subscribe((event) => {
 			if (event.type === "connected") {
 				setConnected(true);
+				// Request initial state so StatusBar can display model name
+				try {
+					client.send({ type: "get_state" });
+				} catch {
+					// Will retry on next reconnect
+				}
 			} else if (event.type === "disconnected") {
 				setConnected(false);
 			}
@@ -37,11 +44,15 @@ export function useBridge(url?: string): UseBridgeState {
 			unsubscribe();
 			client.disconnect();
 		};
-	}, [url]);
+	}, []);
 
 	const send = useCallback((command: RpcCommand) => {
 		clientRef.current.send(command);
 	}, []);
 
-	return { connected, events, send };
+	const clearEvents = useCallback(() => {
+		setEvents([]);
+	}, []);
+
+	return { connected, events, send, clearEvents };
 }

@@ -1,4 +1,4 @@
-import { spawn, type ChildProcess } from "node:child_process";
+import { type ChildProcess, spawn } from "node:child_process";
 import { createInterface } from "node:readline";
 
 export interface PiProcessOptions {
@@ -60,7 +60,7 @@ export class PiProcess {
 		if (!this.child?.stdin) {
 			throw new Error("Pi process not started or stdin unavailable");
 		}
-		this.child.stdin.write(JSON.stringify(obj) + "\n");
+		this.child.stdin.write(`${JSON.stringify(obj)}\n`);
 	}
 
 	/**

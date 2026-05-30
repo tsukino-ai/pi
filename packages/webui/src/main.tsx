@@ -1,14 +1,14 @@
 import "./styles/index.css";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { XProvider } from "@ant-design/x";
-import { App } from "./App.tsx";
+import { App } from "./app/App.tsx";
+import { ThemeProvider } from "./app/ThemeProvider.tsx";
 
 const root = createRoot(document.getElementById("root")!);
 root.render(
 	<StrictMode>
-		<XProvider>
+		<ThemeProvider>
 			<App />
-		</XProvider>
+		</ThemeProvider>
 	</StrictMode>,
 );

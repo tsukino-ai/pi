@@ -1,58 +1,65 @@
-import type { AgentMessage } from "../bridge/types.ts";
+import { Bubble } from "@ant-design/x";
+import type { AgentMessage, ToolCallState } from "../bridge/types.ts";
+import { ToolCallCard } from "./tool-renderers/index.ts";
 
 export interface MessageBubbleProps {
 	message: AgentMessage;
 	isStreaming?: boolean;
+	toolCalls?: Map<string, ToolCallState>;
 }
 
 function getMessageContent(msg: AgentMessage): string {
-	if (msg.role === "user") {
-		return typeof msg.content === "string" ? msg.content : JSON.stringify(msg.content);
-	}
-	if (msg.role === "assistant") {
-		if (!Array.isArray(msg.content)) return String(msg.content);
-		return msg.content
-			.map((c) => {
-				if (c.type === "text") return c.text ?? "";
-				if (c.type === "toolCall") return `Tool call: ${c.name ?? "unknown"}`;
-				return "";
-			})
-			.join("\n");
-	}
-	if (msg.role === "toolResult") {
-		if (!Array.isArray(msg.content)) return String(msg.content);
-		return msg.content.map((c) => (c.type === "text" ? c.text ?? "" : "")).join("\n");
-	}
-	return "";
+	if (typeof msg.content === "string") return msg.content;
+	if (!Array.isArray(msg.content)) return JSON.stringify(msg.content);
+
+	return msg.content
+		.filter((c) => c.type === "text")
+		.map((c) => c.text ?? "")
+		.join("\n");
 }
 
-export function MessageBubble({ message, isStreaming }: MessageBubbleProps) {
-	const isUser = message.role === "user";
+export function MessageBubble({ message, isStreaming, toolCalls }: MessageBubbleProps) {
+	const placement = message.role === "user" ? "end" : "start";
 	const content = getMessageContent(message);
+
+	// For assistant messages, render ToolCallCard for each tool call entry
+	const toolCallCards: React.ReactNode[] = [];
+	if (message.role === "assistant" && Array.isArray(message.content) && toolCalls) {
+		// Collect tool call states in insertion order for index-based matching
+		const toolCallStates = Array.from(toolCalls.values());
+		let stateIndex = 0;
+
+		for (const entry of message.content) {
+			if (entry.type === "toolCall") {
+				const tcState = toolCallStates[stateIndex];
+				toolCallCards.push(
+					<ToolCallCard
+						key={entry.arguments ?? stateIndex}
+						toolName={tcState?.toolName ?? entry.name ?? "unknown"}
+						args={tcState?.args ?? {}}
+						status={tcState?.status ?? "pending"}
+						result={tcState?.result}
+					/>,
+				);
+				stateIndex++;
+			}
+		}
+	}
 
 	return (
 		<div
 			style={{
 				display: "flex",
-				justifyContent: isUser ? "flex-end" : "flex-start",
-				marginBottom: 8,
+				flexDirection: "column",
+				alignItems: placement === "end" ? "flex-end" : "flex-start",
 			}}
 		>
-			<div
-				style={{
-					maxWidth: "85%",
-					padding: "10px 14px",
-					borderRadius: 12,
-					background: isUser ? "#1677ff" : "#f0f0f0",
-					color: isUser ? "#fff" : "#333",
-					whiteSpace: "pre-wrap",
-					wordBreak: "break-word",
-					fontSize: 15,
-					lineHeight: 1.5,
-				}}
-			>
-				{content + (isStreaming ? "▋" : "")}
-			</div>
+			<Bubble
+				placement={placement}
+				content={content + (isStreaming ? "▋" : "")}
+				avatar={message.role === "user" ? { icon: "U" } : { icon: "AI" }}
+			/>
+			{toolCallCards}
 		</div>
 	);
 }
