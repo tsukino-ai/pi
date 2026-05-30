@@ -7,6 +7,7 @@ import { CommandPalette } from "../components/CommandPalette.tsx";
 import { Composer } from "../components/Composer.tsx";
 import { DirectoryPicker } from "../components/DirectoryPicker.tsx";
 import { WelcomeScreen } from "../components/WelcomeScreen.tsx";
+import { SuggestionBar, DEFAULT_SUGGESTIONS } from "../components/SuggestionBar.tsx";
 import { StatusBar } from "../components/StatusBar.tsx";
 import type { Session } from "./SessionList.tsx";
 import { Sidebar } from "./Sidebar.tsx";
@@ -387,6 +388,11 @@ export function App() {
 						/>
 					)}
 					<Layout>
+						<SuggestionBar
+							suggestions={DEFAULT_SUGGESTIONS}
+							onSelect={(s) => handleSend(s.text)}
+							visible={state.messages.length === 0 && !state.isStreaming}
+						/>
 						<CommandPalette
 							visible={commandPaletteVisible}
 							commands={state.commands}
