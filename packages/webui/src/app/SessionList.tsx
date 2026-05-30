@@ -128,7 +128,14 @@ export function SessionList({ sessions, currentSessionId, currentCwd, send, onSw
 							items={dirSessions.map((s) => ({
 								key: `${s.workDirHash}/${s.sessionId}`,
 								label: s.title || s.sessionId.slice(0, 8),
-								description: `${s.turns} messages`,
+								description: (
+									<div>
+										<div>{s.turns} messages</div>
+										<div style={{ fontSize: 11, color: "#bbb" }}>
+											{new Date(s.lastUpdated).toLocaleDateString()}
+										</div>
+									</div>
+								),
 							}))}
 							activeKey={
 								currentSessionId
