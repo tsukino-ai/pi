@@ -17,6 +17,7 @@ export interface ImageContent {
 export interface Model {
 	id: string;
 	name: string;
+	provider: string;
 }
 
 export type RpcCommand =

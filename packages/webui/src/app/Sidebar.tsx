@@ -1,7 +1,7 @@
 import { MessageOutlined, SettingOutlined, SlidersOutlined } from "@ant-design/icons";
 import { Layout, Menu } from "antd";
 import { useState } from "react";
-import type { RpcCommand } from "../bridge/types.ts";
+import type { Model, RpcCommand } from "../bridge/types.ts";
 import { ModelConfig } from "./ModelConfig.tsx";
 import { SessionList, type Session } from "./SessionList.tsx";
 import { Settings } from "./Settings.tsx";
@@ -19,6 +19,8 @@ export interface SidebarProps {
 	sessions?: Session[];
 	currentSessionId?: string;
 	onSessionSwitch?: (sessionId: string) => void;
+	currentModel?: Model;
+	availableModels?: Model[];
 }
 
 export function Sidebar({
@@ -30,6 +32,8 @@ export function Sidebar({
 	sessions = [],
 	currentSessionId,
 	onSessionSwitch,
+	currentModel,
+	availableModels = [],
 }: SidebarProps) {
 	const [activeTab, setActiveTab] = useState<SidebarTab>("sessions");
 
@@ -57,10 +61,12 @@ export function Sidebar({
 				{activeTab === "models" && (
 					<ModelConfig
 						send={send}
+						currentModel={currentModel}
 						thinkingLevel={thinkingLevel}
 						steeringMode={steeringMode}
 						autoCompaction={autoCompaction}
 						autoRetry={autoRetry}
+						availableModels={availableModels}
 					/>
 				)}
 				{activeTab === "settings" && <Settings />}
