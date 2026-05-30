@@ -1,20 +1,27 @@
+import { Layout } from "antd";
 import { useCallback, useEffect, useReducer } from "react";
-import type { AgentMessage, RpcExtensionUIRequest, ToolCallState } from "./bridge/types.ts";
-import { useBridge } from "./bridge/useBridge.ts";
-import { ChatView } from "./components/ChatView.tsx";
-import { Composer } from "./components/Composer.tsx";
-import { StatusBar } from "./components/StatusBar.tsx";
+import type { AgentMessage, RpcExtensionUIRequest, ToolCallState } from "../bridge/types.ts";
+import { useBridge } from "../bridge/useBridge.ts";
+import { ChatView } from "../components/ChatView.tsx";
+import { Composer } from "../components/Composer.tsx";
+import { StatusBar } from "../components/StatusBar.tsx";
+import { Sidebar } from "./Sidebar.tsx";
 
-interface ChatState {
+interface AppState {
 	messages: AgentMessage[];
 	streamingMessage: AgentMessage | undefined;
 	isStreaming: boolean;
 	modelName: string | undefined;
 	pendingExtension: RpcExtensionUIRequest | undefined;
 	toolCalls: Map<string, ToolCallState>;
+	thinkingLevel: "off" | "minimal" | "low" | "medium" | "high" | "xhigh";
+	steeringMode: "all" | "one-at-a-time";
+	autoCompaction: boolean;
+	autoRetry: boolean;
+	sidebarCollapsed: boolean;
 }
 
-type ChatAction =
+type AppAction =
 	| { type: "agent_start" }
 	| { type: "agent_end" }
 	| { type: "message_end"; message: AgentMessage }
@@ -24,29 +31,38 @@ type ChatAction =
 	| { type: "extension_request"; request: RpcExtensionUIRequest }
 	| { type: "extension_dismiss" }
 	| { type: "tool_execution_start"; toolCallId: string; toolName: string; args: Record<string, unknown> }
-	| { type: "tool_execution_end"; toolCallId: string; isError: boolean; result: ToolCallState["result"] };
+	| { type: "tool_execution_end"; toolCallId: string; isError: boolean; result: ToolCallState["result"] }
+	| {
+			type: "state_update";
+			thinkingLevel: AppState["thinkingLevel"];
+			steeringMode: AppState["steeringMode"];
+			autoCompaction: boolean;
+			autoRetry: boolean;
+	  }
+	| { type: "toggle_sidebar" };
 
-const initialState: ChatState = {
+const initialState: AppState = {
 	messages: [],
 	streamingMessage: undefined,
 	isStreaming: false,
 	modelName: undefined,
 	pendingExtension: undefined,
 	toolCalls: new Map(),
+	thinkingLevel: "off",
+	steeringMode: "all",
+	autoCompaction: true,
+	autoRetry: true,
+	sidebarCollapsed: false,
 };
 
-function chatReducer(state: ChatState, action: ChatAction): ChatState {
+function appReducer(state: AppState, action: AppAction): AppState {
 	switch (action.type) {
 		case "agent_start":
 			return { ...state, isStreaming: true };
 		case "agent_end":
 			return { ...state, isStreaming: false, streamingMessage: undefined };
 		case "message_end":
-			return {
-				...state,
-				messages: [...state.messages, action.message],
-				streamingMessage: undefined,
-			};
+			return { ...state, messages: [...state.messages, action.message], streamingMessage: undefined };
 		case "message_update":
 			return { ...state, streamingMessage: action.message };
 		case "user_message":
@@ -79,6 +95,16 @@ function chatReducer(state: ChatState, action: ChatAction): ChatState {
 			}
 			return { ...state, toolCalls: next };
 		}
+		case "state_update":
+			return {
+				...state,
+				thinkingLevel: action.thinkingLevel,
+				steeringMode: action.steeringMode,
+				autoCompaction: action.autoCompaction,
+				autoRetry: action.autoRetry,
+			};
+		case "toggle_sidebar":
+			return { ...state, sidebarCollapsed: !state.sidebarCollapsed };
 		default:
 			return state;
 	}
@@ -86,9 +112,8 @@ function chatReducer(state: ChatState, action: ChatAction): ChatState {
 
 export function App() {
 	const { connected, events, send } = useBridge();
-	const [state, dispatch] = useReducer(chatReducer, initialState);
+	const [state, dispatch] = useReducer(appReducer, initialState);
 
-	// Process only the latest event (incremental, not full scan)
 	useEffect(() => {
 		const event = events[events.length - 1];
 		if (!event) return;
@@ -103,20 +128,13 @@ export function App() {
 					dispatch({ type: "agent_end" });
 					break;
 				case "message_end":
-					if (payload.message) {
-						dispatch({ type: "message_end", message: payload.message as AgentMessage });
-					}
+					if (payload.message) dispatch({ type: "message_end", message: payload.message as AgentMessage });
 					break;
 				case "message_update":
-					if (payload.message) {
-						dispatch({ type: "message_update", message: payload.message as AgentMessage });
-					}
+					if (payload.message) dispatch({ type: "message_update", message: payload.message as AgentMessage });
 					break;
 				case "extension_ui_request":
-					dispatch({
-						type: "extension_request",
-						request: payload as unknown as RpcExtensionUIRequest,
-					});
+					dispatch({ type: "extension_request", request: payload as unknown as RpcExtensionUIRequest });
 					break;
 				case "tool_execution_start":
 					dispatch({
@@ -140,42 +158,48 @@ export function App() {
 		if (event.type === "rpc_response") {
 			const resp = event.payload as Record<string, unknown>;
 			if (resp.command === "get_state" && resp.success) {
-				const data = resp.data as { model?: { name?: string } };
-				if (data.model?.name) {
-					dispatch({ type: "model_name", name: data.model.name });
-				}
+				const data = resp.data as Record<string, unknown>;
+				if (data.model) dispatch({ type: "model_name", name: (data.model as Record<string, string>).name });
+				dispatch({
+					type: "state_update",
+					thinkingLevel: (data.thinkingLevel ?? "off") as AppState["thinkingLevel"],
+					steeringMode: (data.steeringMode ?? "all") as AppState["steeringMode"],
+					autoCompaction: Boolean(data.autoCompactionEnabled),
+					autoRetry: Boolean(data.autoRetryEnabled),
+				});
 			}
 		}
 	}, [events]);
 
 	const handleSend = useCallback(
 		(message: string) => {
-			dispatch({
-				type: "user_message",
-				message: { role: "user", content: message, timestamp: Date.now() },
-			});
+			dispatch({ type: "user_message", message: { role: "user", content: message, timestamp: Date.now() } });
 			send({ type: "prompt", message });
 		},
 		[send],
 	);
 
-	const handleExtensionDismiss = useCallback(() => {
-		dispatch({ type: "extension_dismiss" });
-	}, []);
-
 	return (
-		<div style={{ display: "flex", flexDirection: "column", height: "100vh" }}>
-			<ChatView messages={state.messages} streamingMessage={state.streamingMessage} toolCalls={state.toolCalls} />
-			<Composer onSend={handleSend} disabled={!connected || state.isStreaming} />
-			<StatusBar connected={connected} isStreaming={state.isStreaming} modelName={state.modelName} />
-			{state.pendingExtension && (
-				<div style={{ padding: 12, background: "#fffbe6", borderTop: "1px solid #ffe58f" }}>
-					<span>Extension request: {state.pendingExtension.method}</span>
-					<button type="button" onClick={handleExtensionDismiss} style={{ marginLeft: 8 }}>
-						Dismiss
-					</button>
-				</div>
+		<Layout style={{ height: "100vh" }}>
+			{!state.sidebarCollapsed && (
+				<Sidebar
+					send={send}
+					thinkingLevel={state.thinkingLevel}
+					steeringMode={state.steeringMode}
+					autoCompaction={state.autoCompaction}
+					autoRetry={state.autoRetry}
+				/>
 			)}
-		</div>
+			<Layout>
+				<ChatView messages={state.messages} streamingMessage={state.streamingMessage} toolCalls={state.toolCalls} />
+				<Composer onSend={handleSend} disabled={!connected || state.isStreaming} />
+				<StatusBar
+					connected={connected}
+					isStreaming={state.isStreaming}
+					modelName={state.modelName}
+					onToggleSidebar={() => dispatch({ type: "toggle_sidebar" })}
+				/>
+			</Layout>
+		</Layout>
 	);
 }

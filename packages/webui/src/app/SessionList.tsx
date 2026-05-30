@@ -1,11 +1,6 @@
-import { Button, Dropdown, Empty, List } from "antd";
-import {
-	DownloadOutlined,
-	EditOutlined,
-	ForkOutlined,
-	PlusOutlined,
-} from "@ant-design/icons";
+import { DownloadOutlined, EditOutlined, ForkOutlined, PlusOutlined } from "@ant-design/icons";
 import type { MenuProps } from "antd";
+import { Button, Dropdown, Empty, List } from "antd";
 import { useState } from "react";
 import type { RpcCommand } from "../bridge/types.ts";
 
@@ -20,7 +15,7 @@ interface SessionItem {
 }
 
 export function SessionList({ send }: SessionListProps) {
-	const [sessions, setSessions] = useState<SessionItem[]>([]);
+	const [sessions, _setSessions] = useState<SessionItem[]>([]);
 
 	const handleNew = () => {
 		send({ type: "new_session" });

@@ -7,7 +7,9 @@ export function Settings() {
 	return (
 		<Space direction="vertical" style={{ width: "100%" }} size="middle">
 			<div>
-				<label style={{ display: "block", marginBottom: 4, fontWeight: 500 }}>Theme</label>
+				<label htmlFor="theme-select" style={{ display: "block", marginBottom: 4, fontWeight: 500 }}>
+					Theme
+				</label>
 				<Radio.Group value={mode} onChange={(e) => setMode(e.target.value)}>
 					<Radio.Button value="light">Light</Radio.Button>
 					<Radio.Button value="dark">Dark</Radio.Button>

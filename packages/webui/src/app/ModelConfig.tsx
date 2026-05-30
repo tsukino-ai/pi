@@ -3,8 +3,8 @@ import type { RpcCommand } from "../bridge/types.ts";
 
 export interface ModelConfigProps {
 	send: (command: RpcCommand) => void;
-	thinkingLevel: string;
-	steeringMode: string;
+	thinkingLevel: "off" | "minimal" | "low" | "medium" | "high" | "xhigh";
+	steeringMode: "all" | "one-at-a-time";
 	autoCompaction: boolean;
 	autoRetry: boolean;
 }
@@ -15,7 +15,9 @@ export function ModelConfig({ send, thinkingLevel, steeringMode, autoCompaction,
 	return (
 		<Space direction="vertical" style={{ width: "100%" }} size="middle">
 			<div>
-				<label style={{ display: "block", marginBottom: 4, fontWeight: 500 }}>Thinking Level</label>
+				<label htmlFor="thinking-level" style={{ display: "block", marginBottom: 4, fontWeight: 500 }}>
+					Thinking Level
+				</label>
 				<Select
 					style={{ width: "100%" }}
 					value={thinkingLevel}
@@ -24,7 +26,9 @@ export function ModelConfig({ send, thinkingLevel, steeringMode, autoCompaction,
 				/>
 			</div>
 			<div>
-				<label style={{ display: "block", marginBottom: 4, fontWeight: 500 }}>Steering Mode</label>
+				<label htmlFor="steering-mode" style={{ display: "block", marginBottom: 4, fontWeight: 500 }}>
+					Steering Mode
+				</label>
 				<Select
 					style={{ width: "100%" }}
 					value={steeringMode}

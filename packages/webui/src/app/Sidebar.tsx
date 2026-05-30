@@ -1,13 +1,9 @@
+import { MessageOutlined, SettingOutlined, SlidersOutlined } from "@ant-design/icons";
 import { Layout, Menu } from "antd";
-import {
-	MessageOutlined,
-	SettingOutlined,
-	SlidersOutlined,
-} from "@ant-design/icons";
 import { useState } from "react";
 import type { RpcCommand } from "../bridge/types.ts";
-import { SessionList } from "./SessionList.tsx";
 import { ModelConfig } from "./ModelConfig.tsx";
+import { SessionList } from "./SessionList.tsx";
 import { Settings } from "./Settings.tsx";
 
 const { Sider } = Layout;
@@ -16,8 +12,8 @@ type SidebarTab = "sessions" | "models" | "settings";
 
 export interface SidebarProps {
 	send: (command: RpcCommand) => void;
-	thinkingLevel: string;
-	steeringMode: string;
+	thinkingLevel: "off" | "minimal" | "low" | "medium" | "high" | "xhigh";
+	steeringMode: "all" | "one-at-a-time";
 	autoCompaction: boolean;
 	autoRetry: boolean;
 }
