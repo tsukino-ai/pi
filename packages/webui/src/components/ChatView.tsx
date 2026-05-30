@@ -1,11 +1,13 @@
+import { RobotOutlined, UserOutlined } from "@ant-design/icons";
 import { Bubble } from "@ant-design/x";
 import type { BubbleDataType } from "@ant-design/x/es/bubble/BubbleList";
 import type { AgentMessage } from "../bridge/types.ts";
-import { UserOutlined, RobotOutlined } from "@ant-design/icons";
+import type { ChatStatus } from "../hooks/usePiChat.ts";
 
 export interface ChatViewProps {
 	messages: AgentMessage[];
 	streamingMessage?: AgentMessage;
+	status?: ChatStatus;
 }
 
 function getContent(msg: AgentMessage): string {
@@ -24,12 +26,12 @@ function getContent(msg: AgentMessage): string {
 	}
 	if (msg.role === "toolResult") {
 		if (!Array.isArray(msg.content)) return String(msg.content);
-		return msg.content.map((c) => (c.type === "text" ? c.text ?? "" : "")).join("\n");
+		return msg.content.map((c) => (c.type === "text" ? (c.text ?? "") : "")).join("\n");
 	}
 	return "";
 }
 
-export function ChatView({ messages, streamingMessage }: ChatViewProps) {
+export function ChatView({ messages, streamingMessage, status: _status }: ChatViewProps) {
 	const items: BubbleDataType[] = messages.map((msg, i) => ({
 		key: i,
 		role: msg.role,

@@ -2,11 +2,12 @@ import { Sender } from "@ant-design/x";
 
 export interface ComposerProps {
 	onSend: (message: string) => void;
+	onAbort?: () => void;
 	disabled?: boolean;
 	loading?: boolean;
 }
 
-export function Composer({ onSend, disabled, loading }: ComposerProps) {
+export function Composer({ onSend, onAbort, disabled, loading }: ComposerProps) {
 	return (
 		<div
 			style={{
