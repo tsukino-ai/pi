@@ -18,6 +18,7 @@ export function Composer({ onSend, onAbort, disabled, loading }: ComposerProps) 
 		>
 			<Sender
 				onSubmit={onSend}
+				onCancel={onAbort}
 				disabled={disabled}
 				loading={loading}
 				submitType="shiftEnter"

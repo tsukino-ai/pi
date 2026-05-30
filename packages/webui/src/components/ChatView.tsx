@@ -31,7 +31,7 @@ function getContent(msg: AgentMessage): string {
 	return "";
 }
 
-export function ChatView({ messages, streamingMessage, status: _status }: ChatViewProps) {
+export function ChatView({ messages, streamingMessage, status }: ChatViewProps) {
 	const items: BubbleDataType[] = messages.map((msg, i) => ({
 		key: i,
 		role: msg.role,
@@ -54,6 +54,16 @@ export function ChatView({ messages, streamingMessage, status: _status }: ChatVi
 				streamingMessage.role === "user"
 					? { icon: <UserOutlined />, style: { background: "#1677ff" } }
 					: { icon: <RobotOutlined />, style: { background: "#87e8de" } },
+		});
+	}
+
+	if (status === "loading" && !streamingMessage && messages.length > 0) {
+		items.push({
+			key: "skeleton",
+			role: "assistant",
+			placement: "start",
+			loading: true,
+			avatar: { icon: <RobotOutlined />, style: { background: "#87e8de" } },
 		});
 	}
 
