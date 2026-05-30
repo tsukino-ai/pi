@@ -1,13 +1,26 @@
-import { Button, Card } from "antd";
 import { CopyOutlined } from "@ant-design/icons";
-import { useMemo } from "react";
+import { Button, Card } from "antd";
 import hljs from "highlight.js";
+import { useMemo } from "react";
 
 const EXT_TO_LANG: Record<string, string> = {
-	ts: "typescript", tsx: "typescript", js: "javascript", jsx: "javascript",
-	py: "python", rs: "rust", go: "go", java: "java", md: "markdown",
-	json: "json", yaml: "yaml", yml: "yaml", sh: "bash", bash: "bash",
-	css: "css", html: "html", sql: "sql",
+	ts: "typescript",
+	tsx: "typescript",
+	js: "javascript",
+	jsx: "javascript",
+	py: "python",
+	rs: "rust",
+	go: "go",
+	java: "java",
+	md: "markdown",
+	json: "json",
+	yaml: "yaml",
+	yml: "yaml",
+	sh: "bash",
+	bash: "bash",
+	css: "css",
+	html: "html",
+	sql: "sql",
 };
 
 function detectLanguage(filePath?: string): string | undefined {
@@ -49,7 +62,10 @@ export function CodeBlock({ content, filePath }: CodeBlockProps) {
 			style={{ marginTop: 8 }}
 		>
 			<pre style={{ margin: 0, overflowX: "auto", fontSize: 13, lineHeight: 1.5 }}>
-				<code dangerouslySetInnerHTML={{ __html: highlighted }} />
+				<code
+					/* biome-ignore lint/security/noDangerouslySetInnerHtml: syntax highlighted HTML from highlight.js */
+					dangerouslySetInnerHTML={{ __html: highlighted }}
+				/>
 			</pre>
 		</Card>
 	);

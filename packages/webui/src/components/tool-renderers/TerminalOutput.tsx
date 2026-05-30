@@ -13,6 +13,7 @@ export function TerminalOutput({ command, output, isError }: TerminalOutputProps
 	const lines = output.split("\n");
 	const isLong = lines.length > 20;
 	const displayOutput = isLong && !expanded ? lines.slice(0, 20).join("\n") : output;
+	const htmlContent = ansiToHtmlString(displayOutput);
 
 	return (
 		<Card
@@ -38,16 +39,25 @@ export function TerminalOutput({ command, output, isError }: TerminalOutputProps
 					maxHeight: expanded ? "none" : "400px",
 					overflow: "auto",
 				}}
-				dangerouslySetInnerHTML={{ __html: ansiToHtmlString(displayOutput) }}
+				/* biome-ignore lint/security/noDangerouslySetInnerHtml: ANSI-converted HTML from trusted agent output */
+				dangerouslySetInnerHTML={{ __html: htmlContent }}
 			/>
 			{isLong && (
 				<div style={{ textAlign: "center", paddingTop: 8 }}>
-					<a
+					<button
+						type="button"
 						onClick={() => setExpanded(!expanded)}
-						style={{ color: "#1890ff", cursor: "pointer", fontSize: 12 }}
+						style={{
+							color: "#1890ff",
+							cursor: "pointer",
+							fontSize: 12,
+							background: "none",
+							border: "none",
+							padding: 0,
+						}}
 					>
 						{expanded ? "Show less" : `Show ${lines.length - 20} more lines`}
-					</a>
+					</button>
 				</div>
 			)}
 		</Card>

@@ -1,5 +1,5 @@
-import { Card } from "antd";
 import { FileAddOutlined } from "@ant-design/icons";
+import { Card } from "antd";
 
 export interface FileNoticeProps {
 	filePath: string;

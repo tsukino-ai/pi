@@ -47,7 +47,13 @@ export function MessageBubble({ message, isStreaming, toolCalls }: MessageBubble
 	}
 
 	return (
-		<div style={{ display: "flex", flexDirection: "column", alignItems: placement === "end" ? "flex-end" : "flex-start" }}>
+		<div
+			style={{
+				display: "flex",
+				flexDirection: "column",
+				alignItems: placement === "end" ? "flex-end" : "flex-start",
+			}}
+		>
 			<Bubble
 				placement={placement}
 				content={content + (isStreaming ? "▋" : "")}

@@ -1,14 +1,10 @@
+import { CodeOutlined, EditOutlined, FileTextOutlined } from "@ant-design/icons";
 import { Card, Collapse, Spin, Tag } from "antd";
-import {
-	CodeOutlined,
-	EditOutlined,
-	FileTextOutlined,
-} from "@ant-design/icons";
 import type { ToolCallState } from "../../bridge/types.ts";
 import { CodeBlock } from "./CodeBlock.tsx";
 import { DiffView } from "./DiffView.tsx";
-import { TerminalOutput } from "./TerminalOutput.tsx";
 import { FileNotice } from "./FileNotice.tsx";
+import { TerminalOutput } from "./TerminalOutput.tsx";
 
 export interface ToolCallCardProps {
 	toolName: string;
@@ -83,10 +79,7 @@ export function ToolCallCard({ toolName, args, status, result }: ToolCallCardPro
 	const isError = status === "error";
 
 	return (
-		<Card
-			size="small"
-			style={{ marginTop: 8, borderColor: isError ? "#ff4d4f" : undefined }}
-		>
+		<Card size="small" style={{ marginTop: 8, borderColor: isError ? "#ff4d4f" : undefined }}>
 			<Collapse
 				ghost
 				defaultActiveKey={status === "pending" ? undefined : ["body"]}
