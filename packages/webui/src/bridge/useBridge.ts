@@ -7,6 +7,10 @@ export interface UseBridgeState {
 	events: BridgeEvent[];
 	send: (command: RpcCommand) => void;
 	clearEvents: () => void;
+	waitingForDirectory: boolean;
+	currentCwd: string | null;
+	setWorkingDirectory: (cwd: string) => void;
+	useTempWorkspace: () => void;
 }
 
 function getDefaultUrl(): string {
@@ -18,6 +22,8 @@ export function useBridge(url?: string): UseBridgeState {
 	const clientRef = useRef<BridgeClient | null>(null);
 	const [connected, setConnected] = useState(false);
 	const [events, setEvents] = useState<BridgeEvent[]>([]);
+	const [waitingForDirectory, setWaitingForDirectory] = useState(false);
+	const [currentCwd, setCurrentCwd] = useState<string | null>(null);
 
 	useEffect(() => {
 		const client = new BridgeClient(resolvedUrl);
@@ -28,17 +34,37 @@ export function useBridge(url?: string): UseBridgeState {
 
 		const unsubscribe = client.subscribe((event) => {
 			if (cancelled) return;
+
 			if (event.type === "connected") {
 				setConnected(true);
-				try {
-					client.send({ type: "get_state" });
-					client.send({ type: "get_messages" });
-				} catch {
-					// Will retry on next reconnect
-				}
 			} else if (event.type === "disconnected") {
 				setConnected(false);
+				setWaitingForDirectory(false);
 			}
+
+			// Handle bridge-specific events
+			if (event.type === "rpc_event") {
+				const payload = event.payload as Record<string, unknown>;
+				if (payload.type === "bridge_event") {
+					if (payload.event === "waiting_for_directory") {
+						setWaitingForDirectory(true);
+						return;
+					}
+					if (payload.event === "pi_started") {
+						setWaitingForDirectory(false);
+						setCurrentCwd(payload.cwd as string);
+						// Fetch initial state
+						try {
+							client.send({ type: "get_state" });
+							client.send({ type: "get_messages" });
+						} catch {
+							/* ignore */
+						}
+						return;
+					}
+				}
+			}
+
 			setEvents((prev) => [...prev, event]);
 		});
 
@@ -58,5 +84,22 @@ export function useBridge(url?: string): UseBridgeState {
 		setEvents([]);
 	}, []);
 
-	return { connected, events, send, clearEvents };
+	const setWorkingDirectory = useCallback((cwd: string) => {
+		clientRef.current?.send({ type: "set_working_directory", cwd } as unknown as RpcCommand);
+	}, []);
+
+	const useTempWorkspace = useCallback(() => {
+		clientRef.current?.send({ type: "use_temp_workspace" } as unknown as RpcCommand);
+	}, []);
+
+	return {
+		connected,
+		events,
+		send,
+		clearEvents,
+		waitingForDirectory,
+		currentCwd,
+		setWorkingDirectory,
+		useTempWorkspace,
+	};
 }

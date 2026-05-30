@@ -5,6 +5,7 @@ import { useBridge } from "../bridge/useBridge.ts";
 import { ChatView } from "../components/ChatView.tsx";
 import { CommandPalette } from "../components/CommandPalette.tsx";
 import { Composer } from "../components/Composer.tsx";
+import { DirectoryPicker } from "../components/DirectoryPicker.tsx";
 import { StatusBar } from "../components/StatusBar.tsx";
 import type { Session } from "./SessionList.tsx";
 import { Sidebar } from "./Sidebar.tsx";
@@ -260,7 +261,8 @@ function extractCwd(sessionFile?: string): string | undefined {
 }
 
 export function App() {
-	const { connected, events, send } = useBridge();
+	const { connected, events, send, waitingForDirectory, currentCwd, setWorkingDirectory, useTempWorkspace } =
+		useBridge();
 	const [state, dispatch] = useReducer(appReducer, initialState);
 	const processedCountRef = useRef(0);
 	const [commandPaletteVisible, setCommandPaletteVisible] = useState(false);
@@ -352,10 +354,11 @@ export function App() {
 		[send],
 	);
 
-	const cwd = extractCwd(state.sessionStats?.sessionFile);
+	const cwd = currentCwd || extractCwd(state.sessionStats?.sessionFile);
 
 	return (
 		<Layout style={{ height: "100vh" }}>
+			<DirectoryPicker visible={waitingForDirectory} onSelect={setWorkingDirectory} onUseTemp={useTempWorkspace} />
 			{!state.sidebarCollapsed && (
 				<Sidebar
 					send={send}
