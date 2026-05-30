@@ -113,6 +113,23 @@ export interface RpcSessionState {
 
 export type RpcCommandType = RpcCommand["type"];
 
+/** Session statistics from get_session_stats */
+export interface SessionStats {
+	userMessages: number;
+	assistantMessages: number;
+	toolCalls: number;
+	totalMessages: number;
+	tokens: {
+		input: number;
+		output: number;
+		cacheRead: number;
+		cacheWrite: number;
+		total: number;
+	};
+	cost: number;
+	sessionFile?: string;
+}
+
 /** Structured result from a tool execution. Matches AgentToolResult<T> from the agent. */
 export interface ToolResult {
 	content: Array<{ type: string; text?: string }>;

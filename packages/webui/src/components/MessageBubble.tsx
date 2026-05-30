@@ -1,4 +1,5 @@
 import { Bubble } from "@ant-design/x";
+import { Collapse } from "antd";
 import type { AgentMessage, ToolCallState } from "../bridge/types.ts";
 import { ToolCallCard } from "./tool-renderers/index.ts";
 
@@ -6,6 +7,18 @@ export interface MessageBubbleProps {
 	message: AgentMessage;
 	isStreaming?: boolean;
 	toolCalls?: Map<string, ToolCallState>;
+}
+
+function getThinkingContent(msg: AgentMessage): string | undefined {
+	if (typeof msg.content === "string") return undefined;
+	if (!Array.isArray(msg.content)) return undefined;
+
+	const thinkingParts = msg.content
+		.filter((c) => c.type === "thinking")
+		.map((c) => (c as { thinking?: string }).thinking ?? "")
+		.filter(Boolean);
+
+	return thinkingParts.length > 0 ? thinkingParts.join("\n") : undefined;
 }
 
 function getMessageContent(msg: AgentMessage): string {
@@ -21,11 +34,11 @@ function getMessageContent(msg: AgentMessage): string {
 export function MessageBubble({ message, isStreaming, toolCalls }: MessageBubbleProps) {
 	const placement = message.role === "user" ? "end" : "start";
 	const content = getMessageContent(message);
+	const thinking = message.role === "assistant" ? getThinkingContent(message) : undefined;
 
 	// For assistant messages, render ToolCallCard for each tool call entry
 	const toolCallCards: React.ReactNode[] = [];
 	if (message.role === "assistant" && Array.isArray(message.content) && toolCalls) {
-		// Collect tool call states in insertion order for index-based matching
 		const toolCallStates = Array.from(toolCalls.values());
 		let stateIndex = 0;
 
@@ -52,8 +65,36 @@ export function MessageBubble({ message, isStreaming, toolCalls }: MessageBubble
 				display: "flex",
 				flexDirection: "column",
 				alignItems: placement === "end" ? "flex-end" : "flex-start",
+				maxWidth: "80%",
 			}}
 		>
+			{thinking && (
+				<Collapse
+					size="small"
+					style={{ marginBottom: 4, width: "100%", background: "#f6f6f6" }}
+					items={[
+						{
+							key: "thinking",
+							label: <span style={{ color: "#888", fontSize: 12 }}>💭 Thinking...</span>,
+							children: (
+								<pre
+									style={{
+										margin: 0,
+										fontSize: 12,
+										color: "#666",
+										whiteSpace: "pre-wrap",
+										wordBreak: "break-word",
+										maxHeight: 300,
+										overflow: "auto",
+									}}
+								>
+									{thinking}
+								</pre>
+							),
+						},
+					]}
+				/>
+			)}
 			<Bubble
 				placement={placement}
 				content={content + (isStreaming ? "▋" : "")}

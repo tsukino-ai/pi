@@ -10,25 +10,26 @@ export interface UseBridgeState {
 }
 
 function getDefaultUrl(): string {
-	if (typeof window === "undefined") return "ws://localhost:8080";
-	const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-	return `${protocol}//${window.location.host}/api`;
+	return "ws://localhost:8080";
 }
 
 export function useBridge(url?: string): UseBridgeState {
 	const resolvedUrl = url ?? getDefaultUrl();
-	const clientRef = useRef<BridgeClient>(new BridgeClient(resolvedUrl));
+	const clientRef = useRef<BridgeClient | null>(null);
 	const [connected, setConnected] = useState(false);
 	const [events, setEvents] = useState<BridgeEvent[]>([]);
 
 	useEffect(() => {
-		const client = clientRef.current;
+		const client = new BridgeClient(resolvedUrl);
+		clientRef.current = client;
+		let cancelled = false;
+
 		client.connect();
 
 		const unsubscribe = client.subscribe((event) => {
+			if (cancelled) return;
 			if (event.type === "connected") {
 				setConnected(true);
-				// Request initial state so StatusBar can display model name
 				try {
 					client.send({ type: "get_state" });
 				} catch {
@@ -41,13 +42,15 @@ export function useBridge(url?: string): UseBridgeState {
 		});
 
 		return () => {
+			cancelled = true;
 			unsubscribe();
 			client.disconnect();
+			clientRef.current = null;
 		};
-	}, []);
+	}, [resolvedUrl]);
 
 	const send = useCallback((command: RpcCommand) => {
-		clientRef.current.send(command);
+		clientRef.current?.send(command);
 	}, []);
 
 	const clearEvents = useCallback(() => {

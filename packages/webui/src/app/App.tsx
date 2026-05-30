@@ -1,6 +1,6 @@
 import { Layout } from "antd";
 import { useCallback, useEffect, useReducer, useRef } from "react";
-import type { AgentMessage, RpcExtensionUIRequest, ToolCallState } from "../bridge/types.ts";
+import type { AgentMessage, RpcExtensionUIRequest, SessionStats, ToolCallState } from "../bridge/types.ts";
 import { useBridge } from "../bridge/useBridge.ts";
 import { ChatView } from "../components/ChatView.tsx";
 import { Composer } from "../components/Composer.tsx";
@@ -19,6 +19,7 @@ interface AppState {
 	autoCompaction: boolean;
 	autoRetry: boolean;
 	sidebarCollapsed: boolean;
+	sessionStats: SessionStats | undefined;
 }
 
 type AppAction =
@@ -26,7 +27,6 @@ type AppAction =
 	| { type: "agent_end" }
 	| { type: "message_end"; message: AgentMessage }
 	| { type: "message_update"; message: AgentMessage }
-	| { type: "user_message"; message: AgentMessage }
 	| { type: "model_name"; name: string }
 	| { type: "extension_request"; request: RpcExtensionUIRequest }
 	| { type: "extension_dismiss" }
@@ -39,6 +39,7 @@ type AppAction =
 			autoCompaction: boolean;
 			autoRetry: boolean;
 	  }
+	| { type: "session_stats"; stats: SessionStats }
 	| { type: "toggle_sidebar" };
 
 const initialState: AppState = {
@@ -53,6 +54,7 @@ const initialState: AppState = {
 	autoCompaction: true,
 	autoRetry: true,
 	sidebarCollapsed: false,
+	sessionStats: undefined,
 };
 
 function appReducer(state: AppState, action: AppAction): AppState {
@@ -65,8 +67,6 @@ function appReducer(state: AppState, action: AppAction): AppState {
 			return { ...state, messages: [...state.messages, action.message], streamingMessage: undefined };
 		case "message_update":
 			return { ...state, streamingMessage: action.message };
-		case "user_message":
-			return { ...state, messages: [...state.messages, action.message] };
 		case "model_name":
 			return { ...state, modelName: action.name };
 		case "extension_request":
@@ -103,6 +103,8 @@ function appReducer(state: AppState, action: AppAction): AppState {
 				autoCompaction: action.autoCompaction,
 				autoRetry: action.autoRetry,
 			};
+		case "session_stats":
+			return { ...state, sessionStats: action.stats };
 		case "toggle_sidebar":
 			return { ...state, sidebarCollapsed: !state.sidebarCollapsed };
 		default:
@@ -161,7 +163,25 @@ function processEvent(event: import("../bridge/client.ts").BridgeEvent, dispatch
 				autoRetry: Boolean(data.autoRetryEnabled),
 			});
 		}
+		if (resp.command === "get_session_stats" && resp.success) {
+			dispatch({ type: "session_stats", stats: resp.data as SessionStats });
+		}
 	}
+}
+
+/** Extract working directory from session file path */
+function extractCwd(sessionFile?: string): string | undefined {
+	if (!sessionFile) return undefined;
+	// Session file format: .../sessions/<encoded-path>/<uuid>.jsonl
+	// The encoded path is the cwd with slashes replaced
+	const parts = sessionFile.replace(/\\/g, "/").split("/");
+	const sessionsIdx = parts.indexOf("sessions");
+	if (sessionsIdx >= 0 && sessionsIdx + 1 < parts.length - 1) {
+		// Decode the path: "--C--Users-65493-wxr-projects-pi--" -> "C:\Users\65493\wxr\projects\pi"
+		const encoded = parts[sessionsIdx + 1];
+		return encoded.replace(/^--/, "").replace(/--$/, "").replace(/-/g, "\\");
+	}
+	return undefined;
 }
 
 export function App() {
@@ -178,17 +198,39 @@ export function App() {
 		}
 	}, [events]);
 
+	// Fetch session stats periodically
+	useEffect(() => {
+		if (!connected) return;
+		// Fetch on connect
+		try {
+			send({ type: "get_session_stats" });
+		} catch {
+			/* ignore */
+		}
+		// Fetch every 10 seconds
+		const interval = setInterval(() => {
+			try {
+				send({ type: "get_session_stats" });
+			} catch {
+				/* ignore */
+			}
+		}, 10_000);
+		return () => clearInterval(interval);
+	}, [connected, send]);
+
 	const handleSend = useCallback(
 		(message: string) => {
 			try {
 				send({ type: "prompt", message });
-				dispatch({ type: "user_message", message: { role: "user", content: message, timestamp: Date.now() } });
+				// Don't dispatch user_message — pi echoes it back via message_end
 			} catch {
-				// Send failed (WebSocket not connected) — don't add to UI
+				// Send failed (WebSocket not connected)
 			}
 		},
 		[send],
 	);
+
+	const cwd = extractCwd(state.sessionStats?.sessionFile);
 
 	return (
 		<Layout style={{ height: "100vh" }}>
@@ -209,6 +251,8 @@ export function App() {
 					isStreaming={state.isStreaming}
 					modelName={state.modelName}
 					onToggleSidebar={() => dispatch({ type: "toggle_sidebar" })}
+					sessionStats={state.sessionStats}
+					cwd={cwd}
 				/>
 			</Layout>
 		</Layout>

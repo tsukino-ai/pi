@@ -31,6 +31,7 @@ export class PiProcess {
 			stdio: ["pipe", "pipe", "inherit"],
 			cwd: this.options.cwd,
 			env: { ...process.env, ...this.options.env },
+			shell: process.platform === "win32",
 		});
 
 		this.rl = createInterface({ input: this.child.stdout! });
