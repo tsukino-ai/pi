@@ -1,5 +1,6 @@
 // Simplified RPC types for the webui, mirroring the coding-agent RPC protocol.
-// These avoid a dependency on the coding-agent source tree.
+// Canonical source: packages/coding-agent/src/modes/rpc/rpc-types.ts
+// Keep in sync manually — workspace packages cannot be imported without building dist first.
 
 export interface AgentMessage {
 	role: "user" | "assistant" | "toolResult" | "system";
