@@ -3,7 +3,6 @@ import {
 	CodeOutlined,
 	EditOutlined,
 	FileTextOutlined,
-	TerminalOutlined,
 } from "@ant-design/icons";
 import type { ToolCallState } from "../../bridge/types.ts";
 import { CodeBlock } from "./CodeBlock.tsx";
@@ -21,7 +20,7 @@ export interface ToolCallCardProps {
 const TOOL_ICONS: Record<string, React.ReactNode> = {
 	read: <FileTextOutlined />,
 	edit: <EditOutlined />,
-	bash: <TerminalOutlined />,
+	bash: <CodeOutlined />,
 	write: <CodeOutlined />,
 };
 

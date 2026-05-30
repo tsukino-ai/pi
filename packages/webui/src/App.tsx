@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useReducer } from "react";
-import type { AgentMessage, RpcExtensionUIRequest } from "./bridge/types.ts";
+import type { AgentMessage, RpcExtensionUIRequest, ToolCallState } from "./bridge/types.ts";
 import { useBridge } from "./bridge/useBridge.ts";
 import { ChatView } from "./components/ChatView.tsx";
 import { Composer } from "./components/Composer.tsx";
@@ -11,6 +11,7 @@ interface ChatState {
 	isStreaming: boolean;
 	modelName: string | undefined;
 	pendingExtension: RpcExtensionUIRequest | undefined;
+	toolCalls: Map<string, ToolCallState>;
 }
 
 type ChatAction =
@@ -21,7 +22,9 @@ type ChatAction =
 	| { type: "user_message"; message: AgentMessage }
 	| { type: "model_name"; name: string }
 	| { type: "extension_request"; request: RpcExtensionUIRequest }
-	| { type: "extension_dismiss" };
+	| { type: "extension_dismiss" }
+	| { type: "tool_execution_start"; toolCallId: string; toolName: string; args: Record<string, unknown> }
+	| { type: "tool_execution_end"; toolCallId: string; isError: boolean; result: ToolCallState["result"] };
 
 const initialState: ChatState = {
 	messages: [],
@@ -29,6 +32,7 @@ const initialState: ChatState = {
 	isStreaming: false,
 	modelName: undefined,
 	pendingExtension: undefined,
+	toolCalls: new Map(),
 };
 
 function chatReducer(state: ChatState, action: ChatAction): ChatState {
@@ -53,6 +57,28 @@ function chatReducer(state: ChatState, action: ChatAction): ChatState {
 			return { ...state, pendingExtension: action.request };
 		case "extension_dismiss":
 			return { ...state, pendingExtension: undefined };
+		case "tool_execution_start": {
+			const next = new Map(state.toolCalls);
+			next.set(action.toolCallId, {
+				toolCallId: action.toolCallId,
+				toolName: action.toolName,
+				args: action.args,
+				status: "pending",
+			});
+			return { ...state, toolCalls: next };
+		}
+		case "tool_execution_end": {
+			const next = new Map(state.toolCalls);
+			const existing = next.get(action.toolCallId);
+			if (existing) {
+				next.set(action.toolCallId, {
+					...existing,
+					status: action.isError ? "error" : "success",
+					result: action.result,
+				});
+			}
+			return { ...state, toolCalls: next };
+		}
 		default:
 			return state;
 	}
@@ -92,6 +118,22 @@ export function App() {
 						request: payload as unknown as RpcExtensionUIRequest,
 					});
 					break;
+				case "tool_execution_start":
+					dispatch({
+						type: "tool_execution_start",
+						toolCallId: String(payload.toolCallId),
+						toolName: String(payload.toolName),
+						args: (payload.args ?? {}) as Record<string, unknown>,
+					});
+					break;
+				case "tool_execution_end":
+					dispatch({
+						type: "tool_execution_end",
+						toolCallId: String(payload.toolCallId),
+						isError: Boolean(payload.isError),
+						result: payload.result as ToolCallState["result"],
+					});
+					break;
 			}
 		}
 
@@ -123,7 +165,7 @@ export function App() {
 
 	return (
 		<div style={{ display: "flex", flexDirection: "column", height: "100vh" }}>
-			<ChatView messages={state.messages} streamingMessage={state.streamingMessage} />
+			<ChatView messages={state.messages} streamingMessage={state.streamingMessage} toolCalls={state.toolCalls} />
 			<Composer onSend={handleSend} disabled={!connected || state.isStreaming} />
 			<StatusBar connected={connected} isStreaming={state.isStreaming} modelName={state.modelName} />
 			{state.pendingExtension && (
