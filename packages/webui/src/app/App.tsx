@@ -226,6 +226,10 @@ export function App() {
 		return () => clearInterval(interval);
 	}, [connected, send]);
 
+	const handleAbort = useCallback(() => {
+		try { send({ type: "abort" }); } catch { /* ignore */ }
+	}, [send]);
+
 	const handleSend = useCallback(
 		(message: string) => {
 			try {
@@ -253,7 +257,12 @@ export function App() {
 			)}
 			<Layout>
 				<ChatView messages={state.messages} streamingMessage={state.streamingMessage} toolCalls={state.toolCalls} />
-				<Composer onSend={handleSend} disabled={!connected || state.isStreaming} />
+				<Composer
+					onSend={handleSend}
+					onCancel={handleAbort}
+					disabled={!connected}
+					loading={state.isStreaming}
+				/>
 				<StatusBar
 					connected={connected}
 					isStreaming={state.isStreaming}
