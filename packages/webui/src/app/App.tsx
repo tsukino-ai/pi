@@ -166,6 +166,14 @@ function processEvent(event: import("../bridge/client.ts").BridgeEvent, dispatch
 		if (resp.command === "get_session_stats" && resp.success) {
 			dispatch({ type: "session_stats", stats: resp.data as SessionStats });
 		}
+		if (resp.command === "get_messages" && resp.success) {
+			const data = resp.data as { messages: AgentMessage[] };
+			if (data.messages) {
+				for (const msg of data.messages) {
+					dispatch({ type: "message_end", message: msg });
+				}
+			}
+		}
 	}
 }
 

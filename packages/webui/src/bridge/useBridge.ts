@@ -32,6 +32,7 @@ export function useBridge(url?: string): UseBridgeState {
 				setConnected(true);
 				try {
 					client.send({ type: "get_state" });
+					client.send({ type: "get_messages" });
 				} catch {
 					// Will retry on next reconnect
 				}
