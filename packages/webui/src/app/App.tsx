@@ -1,17 +1,26 @@
 import { Layout } from "antd";
-import { useCallback, useEffect, useReducer, useRef } from "react";
-import type { AgentMessage, RpcExtensionUIRequest, SessionStats, ToolCallState } from "../bridge/types.ts";
+import { useCallback, useEffect, useReducer, useRef, useState } from "react";
+import type { AgentMessage, Model, RpcExtensionUIRequest, SessionStats, ToolCallState } from "../bridge/types.ts";
 import { useBridge } from "../bridge/useBridge.ts";
 import { ChatView } from "../components/ChatView.tsx";
+import { CommandPalette } from "../components/CommandPalette.tsx";
 import { Composer } from "../components/Composer.tsx";
 import { StatusBar } from "../components/StatusBar.tsx";
+import type { Session } from "./SessionList.tsx";
 import { Sidebar } from "./Sidebar.tsx";
+
+interface Command {
+	name: string;
+	description?: string;
+	source: string;
+}
 
 interface AppState {
 	messages: AgentMessage[];
 	streamingMessage: AgentMessage | undefined;
 	isStreaming: boolean;
 	modelName: string | undefined;
+	currentModel: Model | undefined;
 	pendingExtension: RpcExtensionUIRequest | undefined;
 	toolCalls: Map<string, ToolCallState>;
 	thinkingLevel: "off" | "minimal" | "low" | "medium" | "high" | "xhigh";
@@ -20,6 +29,12 @@ interface AppState {
 	autoRetry: boolean;
 	sidebarCollapsed: boolean;
 	sessionStats: SessionStats | undefined;
+	availableModels: Model[];
+	sessions: Session[];
+	currentSessionId: string | undefined;
+	bashOutput: string | undefined;
+	bashIsRunning: boolean;
+	commands: Command[];
 }
 
 type AppAction =
@@ -28,6 +43,7 @@ type AppAction =
 	| { type: "message_end"; message: AgentMessage }
 	| { type: "message_update"; message: AgentMessage }
 	| { type: "model_name"; name: string }
+	| { type: "current_model"; model: Model }
 	| { type: "extension_request"; request: RpcExtensionUIRequest }
 	| { type: "extension_dismiss" }
 	| { type: "tool_execution_start"; toolCallId: string; toolName: string; args: Record<string, unknown> }
@@ -40,6 +56,12 @@ type AppAction =
 			autoRetry: boolean;
 	  }
 	| { type: "session_stats"; stats: SessionStats }
+	| { type: "available_models"; models: Model[] }
+	| { type: "sessions"; sessions: Session[] }
+	| { type: "current_session"; sessionId: string }
+	| { type: "bash_output"; output: string; isError: boolean }
+	| { type: "bash_done" }
+	| { type: "commands"; commands: Command[] }
 	| { type: "toggle_sidebar" };
 
 const initialState: AppState = {
@@ -47,6 +69,7 @@ const initialState: AppState = {
 	streamingMessage: undefined,
 	isStreaming: false,
 	modelName: undefined,
+	currentModel: undefined,
 	pendingExtension: undefined,
 	toolCalls: new Map(),
 	thinkingLevel: "off",
@@ -55,6 +78,12 @@ const initialState: AppState = {
 	autoRetry: true,
 	sidebarCollapsed: false,
 	sessionStats: undefined,
+	availableModels: [],
+	sessions: [],
+	currentSessionId: undefined,
+	bashOutput: undefined,
+	bashIsRunning: false,
+	commands: [],
 };
 
 function appReducer(state: AppState, action: AppAction): AppState {
@@ -69,6 +98,8 @@ function appReducer(state: AppState, action: AppAction): AppState {
 			return { ...state, streamingMessage: action.message };
 		case "model_name":
 			return { ...state, modelName: action.name };
+		case "current_model":
+			return { ...state, currentModel: action.model };
 		case "extension_request":
 			return { ...state, pendingExtension: action.request };
 		case "extension_dismiss":
@@ -105,6 +136,18 @@ function appReducer(state: AppState, action: AppAction): AppState {
 			};
 		case "session_stats":
 			return { ...state, sessionStats: action.stats };
+		case "available_models":
+			return { ...state, availableModels: action.models };
+		case "sessions":
+			return { ...state, sessions: action.sessions };
+		case "current_session":
+			return { ...state, currentSessionId: action.sessionId };
+		case "bash_output":
+			return { ...state, bashOutput: action.output, bashIsRunning: true };
+		case "bash_done":
+			return { ...state, bashIsRunning: false };
+		case "commands":
+			return { ...state, commands: action.commands };
 		case "toggle_sidebar":
 			return { ...state, sidebarCollapsed: !state.sidebarCollapsed };
 		default:
@@ -154,7 +197,10 @@ function processEvent(event: import("../bridge/client.ts").BridgeEvent, dispatch
 		const resp = event.payload as Record<string, unknown>;
 		if (resp.command === "get_state" && resp.success) {
 			const data = resp.data as Record<string, unknown>;
-			if (data.model) dispatch({ type: "model_name", name: (data.model as Record<string, string>).name });
+			if (data.model) {
+				dispatch({ type: "model_name", name: (data.model as Record<string, string>).name });
+				dispatch({ type: "current_model", model: data.model as unknown as Model });
+			}
 			dispatch({
 				type: "state_update",
 				thinkingLevel: (data.thinkingLevel ?? "off") as AppState["thinkingLevel"],
@@ -162,6 +208,9 @@ function processEvent(event: import("../bridge/client.ts").BridgeEvent, dispatch
 				autoCompaction: Boolean(data.autoCompactionEnabled),
 				autoRetry: Boolean(data.autoRetryEnabled),
 			});
+			if (data.sessionId) {
+				dispatch({ type: "current_session", sessionId: String(data.sessionId) });
+			}
 		}
 		if (resp.command === "get_session_stats" && resp.success) {
 			dispatch({ type: "session_stats", stats: resp.data as SessionStats });
@@ -174,18 +223,36 @@ function processEvent(event: import("../bridge/client.ts").BridgeEvent, dispatch
 				}
 			}
 		}
+		if (resp.command === "get_available_models" && resp.success) {
+			const data = resp.data as { models: Model[] };
+			if (data.models) {
+				dispatch({ type: "available_models", models: data.models });
+			}
+		}
+		if (resp.command === "get_commands" && resp.success) {
+			const data = resp.data as { commands: Command[] };
+			if (data.commands) {
+				dispatch({ type: "commands", commands: data.commands });
+			}
+		}
+		if (resp.command === "bash" && resp.success) {
+			const data = resp.data as { stdout?: string; stderr?: string; exitCode?: number };
+			dispatch({
+				type: "bash_output",
+				output: (data.stdout ?? "") + (data.stderr ? `\n${data.stderr}` : ""),
+				isError: (data.exitCode ?? 0) !== 0,
+			});
+			dispatch({ type: "bash_done" });
+		}
 	}
 }
 
 /** Extract working directory from session file path */
 function extractCwd(sessionFile?: string): string | undefined {
 	if (!sessionFile) return undefined;
-	// Session file format: .../sessions/<encoded-path>/<uuid>.jsonl
-	// The encoded path is the cwd with slashes replaced
 	const parts = sessionFile.replace(/\\/g, "/").split("/");
 	const sessionsIdx = parts.indexOf("sessions");
 	if (sessionsIdx >= 0 && sessionsIdx + 1 < parts.length - 1) {
-		// Decode the path: "--C--Users-65493-wxr-projects-pi--" -> "C:\Users\65493\wxr\projects\pi"
 		const encoded = parts[sessionsIdx + 1];
 		return encoded.replace(/^--/, "").replace(/--$/, "").replace(/-/g, "\\");
 	}
@@ -196,8 +263,9 @@ export function App() {
 	const { connected, events, send } = useBridge();
 	const [state, dispatch] = useReducer(appReducer, initialState);
 	const processedCountRef = useRef(0);
+	const [commandPaletteVisible, setCommandPaletteVisible] = useState(false);
 
-	// Process ALL new events since last render, not just the last one
+	// Process ALL new events since last render
 	useEffect(() => {
 		const newEvents = events.slice(processedCountRef.current);
 		processedCountRef.current = events.length;
@@ -209,13 +277,11 @@ export function App() {
 	// Fetch session stats periodically
 	useEffect(() => {
 		if (!connected) return;
-		// Fetch on connect
 		try {
 			send({ type: "get_session_stats" });
 		} catch {
 			/* ignore */
 		}
-		// Fetch every 10 seconds
 		const interval = setInterval(() => {
 			try {
 				send({ type: "get_session_stats" });
@@ -237,10 +303,50 @@ export function App() {
 	const handleSend = useCallback(
 		(message: string) => {
 			try {
+				// Check for slash commands
+				if (message.startsWith("/")) {
+					const parts = message.slice(1).split(" ");
+					const cmd = parts[0];
+					const rest = parts.slice(1).join(" ");
+					// Handle known commands
+					if (cmd === "compact") {
+						send({ type: "compact" });
+						return;
+					}
+					if (cmd === "bash" && rest) {
+						send({ type: "bash", command: rest });
+						return;
+					}
+				}
 				send({ type: "prompt", message });
-				// Don't dispatch user_message — pi echoes it back via message_end
 			} catch {
-				// Send failed (WebSocket not connected)
+				// Send failed
+			}
+		},
+		[send],
+	);
+
+	const handleCommandSelect = useCallback(
+		(command: string) => {
+			setCommandPaletteVisible(false);
+			// Insert command into composer or execute
+			if (command === "compact") {
+				try {
+					send({ type: "compact" });
+				} catch {
+					/* ignore */
+				}
+			}
+		},
+		[send],
+	);
+
+	const handleSessionSwitch = useCallback(
+		(sessionId: string) => {
+			try {
+				send({ type: "switch_session", sessionPath: sessionId });
+			} catch {
+				/* ignore */
 			}
 		},
 		[send],
@@ -257,9 +363,23 @@ export function App() {
 					steeringMode={state.steeringMode}
 					autoCompaction={state.autoCompaction}
 					autoRetry={state.autoRetry}
+					sessions={state.sessions}
+					currentSessionId={state.currentSessionId}
+					onSessionSwitch={handleSessionSwitch}
+					currentModel={state.currentModel}
+					availableModels={state.availableModels}
+					bashOutput={state.bashOutput}
+					bashIsRunning={state.bashIsRunning}
 				/>
 			)}
 			<Layout>
+				<CommandPalette
+					visible={commandPaletteVisible}
+					commands={state.commands}
+					onSelect={handleCommandSelect}
+					onClose={() => setCommandPaletteVisible(false)}
+					send={send}
+				/>
 				<ChatView messages={state.messages} streamingMessage={state.streamingMessage} toolCalls={state.toolCalls} />
 				<Composer onSend={handleSend} onCancel={handleAbort} disabled={!connected} loading={state.isStreaming} />
 				<StatusBar
@@ -269,6 +389,7 @@ export function App() {
 					onToggleSidebar={() => dispatch({ type: "toggle_sidebar" })}
 					sessionStats={state.sessionStats}
 					cwd={cwd}
+					send={send}
 				/>
 			</Layout>
 		</Layout>

@@ -1,14 +1,15 @@
-import { MessageOutlined, SettingOutlined, SlidersOutlined } from "@ant-design/icons";
+import { CodeOutlined, MessageOutlined, SettingOutlined, SlidersOutlined } from "@ant-design/icons";
 import { Layout, Menu } from "antd";
 import { useState } from "react";
 import type { Model, RpcCommand } from "../bridge/types.ts";
+import { BashTerminal } from "../components/BashTerminal.tsx";
 import { ModelConfig } from "./ModelConfig.tsx";
 import { type Session, SessionList } from "./SessionList.tsx";
 import { Settings } from "./Settings.tsx";
 
 const { Sider } = Layout;
 
-type SidebarTab = "sessions" | "models" | "settings";
+type SidebarTab = "sessions" | "models" | "bash" | "settings";
 
 export interface SidebarProps {
 	send: (command: RpcCommand) => void;
@@ -21,6 +22,8 @@ export interface SidebarProps {
 	onSessionSwitch?: (sessionId: string) => void;
 	currentModel?: Model;
 	availableModels?: Model[];
+	bashOutput?: string;
+	bashIsRunning?: boolean;
 }
 
 export function Sidebar({
@@ -34,6 +37,8 @@ export function Sidebar({
 	onSessionSwitch,
 	currentModel,
 	availableModels = [],
+	bashOutput,
+	bashIsRunning = false,
 }: SidebarProps) {
 	const [activeTab, setActiveTab] = useState<SidebarTab>("sessions");
 
@@ -46,6 +51,7 @@ export function Sidebar({
 				items={[
 					{ key: "sessions", icon: <MessageOutlined />, label: "Sessions" },
 					{ key: "models", icon: <SlidersOutlined />, label: "Models" },
+					{ key: "bash", icon: <CodeOutlined />, label: "Bash" },
 					{ key: "settings", icon: <SettingOutlined />, label: "Settings" },
 				]}
 			/>
@@ -69,6 +75,7 @@ export function Sidebar({
 						availableModels={availableModels}
 					/>
 				)}
+				{activeTab === "bash" && <BashTerminal send={send} isRunning={bashIsRunning} output={bashOutput} />}
 				{activeTab === "settings" && <Settings />}
 			</div>
 		</Sider>
