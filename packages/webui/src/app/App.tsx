@@ -6,6 +6,7 @@ import { ChatView } from "../components/ChatView.tsx";
 import { CommandPalette } from "../components/CommandPalette.tsx";
 import { Composer } from "../components/Composer.tsx";
 import { DirectoryPicker } from "../components/DirectoryPicker.tsx";
+import { WelcomeScreen } from "../components/WelcomeScreen.tsx";
 import { StatusBar } from "../components/StatusBar.tsx";
 import type { Session } from "./SessionList.tsx";
 import { Sidebar } from "./Sidebar.tsx";
@@ -266,6 +267,7 @@ export function App() {
 	const [state, dispatch] = useReducer(appReducer, initialState);
 	const processedCountRef = useRef(0);
 	const [commandPaletteVisible, setCommandPaletteVisible] = useState(false);
+	const [directoryPickerVisible, setDirectoryPickerVisible] = useState(false);
 
 	// Process ALL new events since last render
 	useEffect(() => {
@@ -358,52 +360,61 @@ export function App() {
 
 	return (
 		<Layout style={{ height: "100vh" }}>
-			<DirectoryPicker visible={waitingForDirectory} onSelect={setWorkingDirectory} onUseTemp={useTempWorkspace} />
-			{!state.sidebarCollapsed && (
-				<Sidebar
-					send={send}
-					thinkingLevel={state.thinkingLevel}
-					steeringMode={state.steeringMode}
-					autoCompaction={state.autoCompaction}
-					autoRetry={state.autoRetry}
-					sessions={sessions}
-					currentSessionId={state.currentSessionId}
-					onSessionSwitch={handleSessionSwitch}
-					onChangeCwd={setWorkingDirectory}
-					currentCwd={currentCwd ?? undefined}
-					currentModel={state.currentModel}
-					availableModels={state.availableModels}
-					bashOutput={state.bashOutput}
-					bashIsRunning={state.bashIsRunning}
+			<DirectoryPicker visible={directoryPickerVisible} onSelect={(cwd) => { setWorkingDirectory(cwd); setDirectoryPickerVisible(false); }} onUseTemp={() => { useTempWorkspace(); setDirectoryPickerVisible(false); }} />
+			{waitingForDirectory && !currentCwd ? (
+				<WelcomeScreen
+					onQuickStart={useTempWorkspace}
+					onSelectDirectory={() => setDirectoryPickerVisible(true)}
 				/>
+			) : (
+				<Layout>
+					{!state.sidebarCollapsed && (
+						<Sidebar
+							send={send}
+							thinkingLevel={state.thinkingLevel}
+							steeringMode={state.steeringMode}
+							autoCompaction={state.autoCompaction}
+							autoRetry={state.autoRetry}
+							sessions={sessions}
+							currentSessionId={state.currentSessionId}
+							onSessionSwitch={handleSessionSwitch}
+							onChangeCwd={setWorkingDirectory}
+							currentCwd={currentCwd ?? undefined}
+							currentModel={state.currentModel}
+							availableModels={state.availableModels}
+							bashOutput={state.bashOutput}
+							bashIsRunning={state.bashIsRunning}
+						/>
+					)}
+					<Layout>
+						<CommandPalette
+							visible={commandPaletteVisible}
+							commands={state.commands}
+							onSelect={handleCommandSelect}
+							onClose={() => setCommandPaletteVisible(false)}
+							send={send}
+						/>
+						<ChatView messages={state.messages} streamingMessage={state.streamingMessage} toolCalls={state.toolCalls} />
+						<Composer
+							onSend={handleSend}
+							onCancel={handleAbort}
+							disabled={!connected}
+							loading={state.isStreaming}
+							sessionName={currentCwd ? currentCwd.split(/[/\\]/).pop() : undefined}
+							sessionStats={state.sessionStats}
+						/>
+						<StatusBar
+							connected={connected}
+							isStreaming={state.isStreaming}
+							modelName={state.modelName}
+							onToggleSidebar={() => dispatch({ type: "toggle_sidebar" })}
+							sessionStats={state.sessionStats}
+							cwd={cwd}
+							send={send}
+						/>
+					</Layout>
+				</Layout>
 			)}
-			<Layout>
-				<CommandPalette
-					visible={commandPaletteVisible}
-					commands={state.commands}
-					onSelect={handleCommandSelect}
-					onClose={() => setCommandPaletteVisible(false)}
-					send={send}
-				/>
-				<ChatView messages={state.messages} streamingMessage={state.streamingMessage} toolCalls={state.toolCalls} />
-				<Composer
-					onSend={handleSend}
-					onCancel={handleAbort}
-					disabled={!connected}
-					loading={state.isStreaming}
-					sessionName={currentCwd ? currentCwd.split(/[/\\]/).pop() : undefined}
-					sessionStats={state.sessionStats}
-				/>
-				<StatusBar
-					connected={connected}
-					isStreaming={state.isStreaming}
-					modelName={state.modelName}
-					onToggleSidebar={() => dispatch({ type: "toggle_sidebar" })}
-					sessionStats={state.sessionStats}
-					cwd={cwd}
-					send={send}
-				/>
-			</Layout>
 		</Layout>
 	);
 }
