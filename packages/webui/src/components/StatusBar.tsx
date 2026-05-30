@@ -18,7 +18,15 @@ function formatTokens(n: number): string {
 	return String(n);
 }
 
-export function StatusBar({ connected, isStreaming, modelName, onToggleSidebar, sessionStats, cwd, send }: StatusBarProps) {
+export function StatusBar({
+	connected,
+	isStreaming,
+	modelName,
+	onToggleSidebar,
+	sessionStats,
+	cwd,
+	send,
+}: StatusBarProps) {
 	const tokens = sessionStats?.tokens;
 
 	return (
@@ -48,12 +56,7 @@ export function StatusBar({ connected, isStreaming, modelName, onToggleSidebar, 
 			)}
 			{send && (
 				<Tooltip title="Compact context">
-					<Button
-						size="small"
-						type="text"
-						icon={<CompressOutlined />}
-						onClick={() => send({ type: "compact" })}
-					/>
+					<Button size="small" type="text" icon={<CompressOutlined />} onClick={() => send({ type: "compact" })} />
 				</Tooltip>
 			)}
 			{cwd && (

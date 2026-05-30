@@ -3,7 +3,7 @@ import { Layout, Menu } from "antd";
 import { useState } from "react";
 import type { Model, RpcCommand } from "../bridge/types.ts";
 import { ModelConfig } from "./ModelConfig.tsx";
-import { SessionList, type Session } from "./SessionList.tsx";
+import { type Session, SessionList } from "./SessionList.tsx";
 import { Settings } from "./Settings.tsx";
 
 const { Sider } = Layout;

@@ -1,8 +1,8 @@
-import { Button, Card, Input, Tag } from "antd";
 import { CodeOutlined, StopOutlined } from "@ant-design/icons";
+import { Button, Card, Input, Tag } from "antd";
 import { useState } from "react";
-import { ansiToHtmlString } from "../utils/ansi.ts";
 import type { RpcCommand } from "../bridge/types.ts";
+import { ansiToHtmlString } from "../utils/ansi.ts";
 
 export interface BashTerminalProps {
 	send: (command: RpcCommand) => void;
@@ -11,7 +11,7 @@ export interface BashTerminalProps {
 	isError?: boolean;
 }
 
-export function BashTerminal({ send, isRunning, output, isError }: BashTerminalProps) {
+export function BashTerminal({ send, isRunning, output }: BashTerminalProps) {
 	const [command, setCommand] = useState("");
 
 	const handleRun = () => {
@@ -32,12 +32,7 @@ export function BashTerminal({ send, isRunning, output, isError }: BashTerminalP
 			}
 			extra={
 				isRunning ? (
-					<Button
-						size="small"
-						danger
-						icon={<StopOutlined />}
-						onClick={() => send({ type: "abort_bash" })}
-					>
+					<Button size="small" danger icon={<StopOutlined />} onClick={() => send({ type: "abort_bash" })}>
 						Stop
 					</Button>
 				) : null

@@ -1,12 +1,6 @@
+import { CopyOutlined, DownloadOutlined, EditOutlined, ForkOutlined, PlusOutlined } from "@ant-design/icons";
 import { Conversations } from "@ant-design/x";
 import { Button, Input, Modal } from "antd";
-import {
-	DownloadOutlined,
-	EditOutlined,
-	ForkOutlined,
-	PlusOutlined,
-	CopyOutlined,
-} from "@ant-design/icons";
 import { useState } from "react";
 import type { RpcCommand } from "../bridge/types.ts";
 
@@ -94,11 +88,7 @@ export function SessionList({ sessions, currentSessionId, send, onSwitch }: Sess
 				onOk={handleRename}
 				onCancel={() => setRenameModalOpen(false)}
 			>
-				<Input
-					value={newName}
-					onChange={(e) => setNewName(e.target.value)}
-					placeholder="Session name"
-				/>
+				<Input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Session name" />
 			</Modal>
 		</div>
 	);

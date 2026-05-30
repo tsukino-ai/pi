@@ -227,7 +227,11 @@ export function App() {
 	}, [connected, send]);
 
 	const handleAbort = useCallback(() => {
-		try { send({ type: "abort" }); } catch { /* ignore */ }
+		try {
+			send({ type: "abort" });
+		} catch {
+			/* ignore */
+		}
 	}, [send]);
 
 	const handleSend = useCallback(
@@ -257,12 +261,7 @@ export function App() {
 			)}
 			<Layout>
 				<ChatView messages={state.messages} streamingMessage={state.streamingMessage} toolCalls={state.toolCalls} />
-				<Composer
-					onSend={handleSend}
-					onCancel={handleAbort}
-					disabled={!connected}
-					loading={state.isStreaming}
-				/>
+				<Composer onSend={handleSend} onCancel={handleAbort} disabled={!connected} loading={state.isStreaming} />
 				<StatusBar
 					connected={connected}
 					isStreaming={state.isStreaming}
